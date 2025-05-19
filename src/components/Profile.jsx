@@ -165,7 +165,7 @@ const Profile = () => {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
-    navigate('/login');
+    navigate('/register');
     setSnackbarOpen(true);
   };
 
@@ -220,7 +220,7 @@ const Profile = () => {
               <ActionButton 
                 variant="contained" 
                 color="primary" 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/register')}
               >
                 Tizimga kirish
               </ActionButton>
@@ -461,7 +461,7 @@ const Profile = () => {
               <Button 
                 variant="outlined" 
                 startIcon={<HistoryIcon />}
-                onClick={() => handleNavigation('/order-history')}
+                onClick={() => handleNavigation('/order')}
                 sx={{ py: 2, borderRadius: 2 }}
               >
                 Buyurtmalar tarixi

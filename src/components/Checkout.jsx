@@ -111,7 +111,6 @@ const Checkout = () => {
 
     loadData();
   }, [navigate]);
-
   const calculateTotal = () =>
     cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -138,10 +137,6 @@ const Checkout = () => {
 
           setDeliveryInfo(prev => ({
             ...prev,
-            coordinates: {
-              latitude: latitude,
-              longitude: longitude,
-            },
             locationData: {
               accuracy: position.coords.accuracy,
               timestamp: position.timestamp,
@@ -151,10 +146,6 @@ const Checkout = () => {
           console.error("Error processing location:", err);
           setDeliveryInfo(prev => ({
             ...prev,
-            coordinates: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            },
             locationData: {
               accuracy: position.coords.accuracy,
               timestamp: position.timestamp,
@@ -188,7 +179,7 @@ const Checkout = () => {
         setError("Iltimos, yetkazib berish manzili va telefon raqamini to'ldiring");
         return;
       }
-      if (!deliveryInfo.coordinates) {
+      if (!deliveryInfo.locationData) {
         setError("Iltimos, joylashuvingizni aniqlang");
         setShowLocationDialog(true);
         return;
@@ -203,7 +194,7 @@ const Checkout = () => {
   };
 
   const handleSubmitOrder = async () => {
-    if (!deliveryInfo.coordinates) {
+    if (!deliveryInfo.locationData) {
       setError("Iltimos, joylashuvingizni aniqlang");
       setShowLocationDialog(true);
       return;
@@ -239,8 +230,8 @@ const Checkout = () => {
         kitchen_salary: totalAmount.toFixed(2),
         courier_salary: "0.00",
         full_salary: totalAmount.toFixed(2),
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude: deliveryInfo.locationData.latitude,
+        longitude: deliveryInfo.locationData.longitude,
         detected_at: new Date().toISOString(),
       };
 
