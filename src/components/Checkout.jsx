@@ -234,7 +234,7 @@ const Checkout = () => {
         longitude: deliveryInfo.locationData.longitude,
         detected_at: new Date().toISOString(),
       };
-console.log('Order Data:', orderData);
+
       const response = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/user/create-order/',
         orderData,
