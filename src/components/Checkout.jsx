@@ -146,14 +146,7 @@ const Checkout = () => {
               latitude: latitude,
               longitude: longitude,
             },
-            locationData: {
-              accuracy: position.coords.accuracy,
-              altitude: position.coords.altitude,
-              altitudeAccuracy: position.coords.altitudeAccuracy,
-              heading: position.coords.heading,
-              speed: position.coords.speed,
-              timestamp: position.timestamp,
-            }
+            
           }));
         } catch (err) {
           console.error("Reverse geocoding error:", err);
@@ -163,14 +156,6 @@ const Checkout = () => {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
             },
-            locationData: {
-              accuracy: position.coords.accuracy,
-              altitude: position.coords.altitude,
-              altitudeAccuracy: position.coords.altitudeAccuracy,
-              heading: position.coords.heading,
-              speed: position.coords.speed,
-              timestamp: position.timestamp,
-            }
           }));
         } finally {
           setLocationLoading(false);
@@ -253,7 +238,6 @@ const Checkout = () => {
         full_salary: totalAmount.toFixed(2),
         location_data: {
           coordinates: deliveryInfo.coordinates,
-          device_location: deliveryInfo.locationData,
           detected_at: new Date().toISOString(),
         },
       };
