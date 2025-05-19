@@ -122,7 +122,7 @@ const Profile = () => {
         const token = localStorage.getItem('authToken');
         
         if (!token) {
-          navigate('/login');
+          navigate('/register');
           return;
         }
 
