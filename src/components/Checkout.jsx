@@ -85,8 +85,15 @@ const Checkout = () => {
         }
 
         const parsedUser = JSON.parse(user);
-        const parsedCart = JSON.parse(cart);
+        console.log('User data from localStorage:', parsedUser);
+        if (!parsedUser || !parsedUser.id) {
+          setError("Foydalanuvchi ma'lumotlari noto'g'ri. Iltimos, qayta tizimga kiring.");
+          setLoading(false);
+          navigate('/login');
+          return;
+        }
 
+        const parsedCart = JSON.parse(cart);
         if (!Array.isArray(parsedCart) || parsedCart.length === 0) {
           setError("Savat bo'sh. Iltimos, mahsulot qo'shing.");
           setLoading(false);
@@ -185,7 +192,7 @@ const Checkout = () => {
       setActiveStep(1);
     } else if (activeStep === 1) {
       if (!deliveryInfo.address || !deliveryInfo.phone) {
-        setError("Iltimos, yetkazib berish manzili va telefon raqamini to‘ldiring");
+        setError("Iltimos, yetkazib berish manzili va telefon raqamini to'ldiring");
         return;
       }
       if (!deliveryInfo.latitude || !deliveryInfo.longitude) {
@@ -247,6 +254,7 @@ const Checkout = () => {
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
       };
+      console.log('Sending order data:', orderData);
 
       const response = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/user/create-order/',

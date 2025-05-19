@@ -226,7 +226,7 @@ const Register = () => {
             errorMessage = err.response.data.message || "Noto'g'ri ma'lumotlar kiritildi.";
           }
         } else if (err.response.status === 500) {
-          errorMessage = "Server xatosi. Iltimos, keyinroq urunib ko'ring.";
+          errorMessage = "Bu foydalanuvchi nomi bant !";
         }
       }
       setError(errorMessage);
@@ -425,3 +425,5 @@ const Register = () => {
 };
 
 export default Register;
+
+
