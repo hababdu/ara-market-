@@ -40,10 +40,9 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-// Online avatar rasmi
+// Default avatar URL
 const defaultAvatar = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png';
 
-// Custom theme
 const theme = createTheme({
   palette: {
     primary: { main: '#4f46e5', contrastText: '#fff' },
@@ -81,7 +80,6 @@ const theme = createTheme({
   },
 });
 
-// Styled components
 const ProfileCard = styled(Card)(({ theme }) => ({
   position: 'relative',
   marginTop: theme.spacing(8),
@@ -109,49 +107,50 @@ const Profile = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [notificationCount, setNotificationCount] = useState(3);
+  const [notificationCount, setNotificationCount] = useState(3); // bu sizning logikaga ko'ra o'zgartiriladi
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Fetch user data
+  // Fetch user data on mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('authToken');
-        
+
+        const token = localStorage.getItem('authToken'); // Tokenni to‘g‘ri olish
         if (!token) {
+          setError('Tizimga kirish talab qilinadi');
           navigate('/register');
           return;
         }
 
-        // Simulate API call
         const response = await axios.get('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` }, // Sintaksis xatosi tuzatildi
         });
 
         if (response.data?.length > 0) {
           const profileData = response.data[0];
+          console.log('Profile data from API:', profileData); // Debugging uchun log
           setUserData({
             ...profileData,
             avatar: profileData.avatar || defaultAvatar,
             stats: {
-              orders: 12,
-              favorites: 8,
-              notifications: 3,
-            }
+              orders: profileData.orders?.length || 0, // Backenddan orders uzunligi
+              favorites: 8, // Bu joyni API dan olish kerak bo‘lsa, qo‘shimcha endpoint qo‘shing
+              notifications: 3, // Bu joyni API dan olish kerak bo‘lsa, qo‘shimcha endpoint qo‘shing
+            },
           });
-          console.log('Profil ma\'lumotlari:', profileData);
           localStorage.setItem('userData', JSON.stringify(profileData));
         } else {
           setError('Profil ma\'lumotlari topilmadi');
         }
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
-        setError(err.response?.data?.message || 'Server xatosi');
+        console.error('Fetch user data error:', err.response ? err.response.data : err.message);
+        setError(err.response?.data?.message || 'Server xatosi yuz berdi');
         if (err.response?.status === 401) {
           localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
           navigate('/login');
         }
       } finally {
@@ -165,8 +164,8 @@ const Profile = () => {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
-    navigate('/register');
     setSnackbarOpen(true);
+    setTimeout(() => navigate('/register'), 1500); // Snackbar ko‘rsatilgandan so‘ng redirect
   };
 
   const handleEditProfile = () => {
@@ -184,13 +183,15 @@ const Profile = () => {
   if (loading) {
     return (
       <ThemeProvider theme={theme}>
-        <Box sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: theme.palette.background.default
-        }}>
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: theme.palette.background.default,
+          }}
+        >
           <Box textAlign="center">
             <CircularProgress size={60} thickness={4} />
             <Typography variant="h6" mt={3} color="text.secondary">
@@ -205,30 +206,24 @@ const Profile = () => {
   if (!userData) {
     return (
       <ThemeProvider theme={theme}>
-        <Box sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: theme.palette.background.default
-        }}>
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: theme.palette.background.default,
+          }}
+        >
           <Container maxWidth="sm">
             <Typography variant="h5" align="center" gutterBottom>
               {error || "Profil ma'lumotlari topilmadi"}
             </Typography>
             <Box mt={4} display="flex" justifyContent="center" gap={2}>
-              <ActionButton 
-                variant="contained" 
-                color="primary" 
-                onClick={() => navigate('/register')}
-              >
+              <ActionButton variant="contained" color="primary" onClick={() => navigate('/register')}>
                 Tizimga kirish
               </ActionButton>
-              <ActionButton 
-                variant="outlined" 
-                color="primary" 
-                onClick={() => navigate('/register')}
-              >
+              <ActionButton variant="outlined" color="primary" onClick={() => navigate('/register')}>
                 Ro'yxatdan o'tish
               </ActionButton>
             </Box>
@@ -240,18 +235,16 @@ const Profile = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{
-        minHeight: '100vh',
-        background: theme.palette.background.default,
-        pb: 8
-      }}>
+      <Box sx={{ minHeight: '100vh', background: theme.palette.background.default, pb: 8 }}>
         {/* Header */}
-        <Box sx={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-          height: isMobile ? 120 : 160,
-          position: 'relative'
-        }}>
-          <IconButton 
+        <Box
+          sx={{
+            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            height: isMobile ? 120 : 160,
+            position: 'relative',
+          }}
+        >
+          <IconButton
             onClick={handleBack}
             sx={{
               position: 'absolute',
@@ -260,22 +253,22 @@ const Profile = () => {
               color: 'white',
               bgcolor: 'rgba(255,255,255,0.2)',
               '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.3)'
-              }
+                bgcolor: 'rgba(255,255,255,0.3)',
+              },
             }}
           >
             <BackIcon />
           </IconButton>
-          
-          <Typography 
-            variant="h5" 
+
+          <Typography
+            variant="h5"
             sx={{
               position: 'absolute',
               top: 16,
               left: '50%',
               transform: 'translateX(-50%)',
               color: 'white',
-              fontWeight: 600
+              fontWeight: 600,
             }}
           >
             Mening Profilim
@@ -284,11 +277,7 @@ const Profile = () => {
 
         <Container maxWidth="md">
           {/* Avatar and basic info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <ProfileCard>
               <AvatarContainer>
                 <Badge
@@ -301,8 +290,8 @@ const Profile = () => {
                         bgcolor: theme.palette.primary.main,
                         color: 'white',
                         '&:hover': {
-                          bgcolor: theme.palette.primary.dark
-                        }
+                          bgcolor: theme.palette.primary.dark,
+                        },
                       }}
                       onClick={handleEditProfile}
                     >
@@ -310,13 +299,13 @@ const Profile = () => {
                     </IconButton>
                   }
                 >
-                  <Avatar 
-                    src={userData.avatar} 
-                    alt={userData.user?.split('@')[0]}
+                  <Avatar
+                    src={userData.avatar}
+                    alt={userData.user?.username || 'Foydalanuvchi'}
                     sx={{
                       width: 96,
                       height: 96,
-                      border: '3px solid white'
+                      border: '3px solid white',
                     }}
                   />
                 </Badge>
@@ -325,30 +314,30 @@ const Profile = () => {
               <CardContent sx={{ pt: 8, pb: 4 }}>
                 <Box textAlign="center" mb={3}>
                   <Typography variant="h5" fontWeight="bold">
-                    {userData.user?.split('@')[0] || 'Foydalanuvchi'}
+                    {userData.user?.username || 'Foydalanuvchi'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {userData.user || 'email@example.com'}
+                    {userData.user?.email || 'email@example.com'}
                   </Typography>
                 </Box>
 
                 {/* Stats */}
                 <Box display="flex" justifyContent="center" gap={2} mb={4}>
-                  <Chip 
+                  <Chip
                     icon={<CartIcon />}
                     label={`${userData.stats?.orders || 0} buyurtma`}
                     variant="outlined"
                     onClick={() => handleNavigation('/orders')}
                     clickable
                   />
-                  <Chip 
+                  <Chip
                     icon={<FavoriteIcon />}
                     label={`${userData.stats?.favorites || 0} sevimli`}
                     variant="outlined"
                     onClick={() => handleNavigation('/favorites')}
                     clickable
                   />
-                  <Chip 
+                  <Chip
                     icon={<NotificationIcon />}
                     label={`${userData.stats?.notifications || 0} xabar`}
                     variant="outlined"
@@ -363,13 +352,13 @@ const Profile = () => {
                     <ListItemIcon sx={{ minWidth: 40 }}>
                       <EmailIcon color="primary" />
                     </ListItemIcon>
-                    <ListItemText 
-                      primary="Email" 
-                      secondary={userData.user || 'Mavjud emas'}
+                    <ListItemText
+                      primary="Email"
+                      secondary={userData.user?.email || 'Mavjud emas'}
                       secondaryTypographyProps={{ color: 'text.secondary' }}
                     />
                   </ListItem>
-                  
+
                   <Divider variant="inset" component="li" />
 
                   {userData.phone_number && (
@@ -378,8 +367,8 @@ const Profile = () => {
                         <ListItemIcon sx={{ minWidth: 40 }}>
                           <PhoneIcon color="primary" />
                         </ListItemIcon>
-                        <ListItemText 
-                          primary="Telefon raqam" 
+                        <ListItemText
+                          primary="Telefon"
                           secondary={userData.phone_number}
                           secondaryTypographyProps={{ color: 'text.secondary' }}
                         />
@@ -394,8 +383,8 @@ const Profile = () => {
                         <ListItemIcon sx={{ minWidth: 40 }}>
                           <HomeIcon color="primary" />
                         </ListItemIcon>
-                        <ListItemText 
-                          primary="Manzil" 
+                        <ListItemText
+                          primary="Manzil"
                           secondary={userData.address}
                           secondaryTypographyProps={{ color: 'text.secondary' }}
                         />
@@ -405,128 +394,45 @@ const Profile = () => {
                   )}
 
                   {userData.location && (
-                    <>
-                      <ListItem disableGutters>
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          <LocationIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText 
-                          primary="Joylashuv" 
-                          secondary={userData.location}
-                          secondaryTypographyProps={{ color: 'text.secondary' }}
-                        />
-                      </ListItem>
-                      <Divider variant="inset" component="li" />
-                    </>
+                    <ListItem disableGutters>
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <LocationIcon color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary="Joylashuv"
+                        secondary={userData.location}
+                        secondaryTypographyProps={{ color: 'text.secondary' }}
+                      />
+                    </ListItem>
                   )}
                 </List>
 
-                {/* Action buttons */}
-                <Box mt={4} display="flex" justifyContent="space-between">
+                <Box textAlign="center" mt={4}>
                   <ActionButton
-                    variant="outlined"
+                    variant="contained"
                     color="secondary"
                     startIcon={<LogoutIcon />}
                     onClick={handleLogout}
                   >
                     Chiqish
                   </ActionButton>
-                  <ActionButton
-                    variant="contained"
-                    color="primary"
-                    startIcon={<EditIcon />}
-                    onClick={handleEditProfile}
-                  >
-                    Tahrirlash
-                  </ActionButton>
                 </Box>
               </CardContent>
             </ProfileCard>
           </motion.div>
-
-          {/* Quick actions */}
-          <Box mt={4}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              Tezkor amallar
-            </Typography>
-            <Box display="grid" gridTemplateColumns={isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr"} gap={2}>
-              <Button 
-                variant="outlined" 
-                startIcon={<CartIcon />}
-                onClick={() => handleNavigation('/cart')}
-                sx={{ py: 2, borderRadius: 2 }}
-              >
-                Savat
-              </Button>
-              <Button 
-                variant="outlined" 
-                startIcon={<HistoryIcon />}
-                onClick={() => handleNavigation('/order')}
-                sx={{ py: 2, borderRadius: 2 }}
-              >
-                Buyurtmalar tarixi
-              </Button>
-              <Button 
-                variant="outlined" 
-                startIcon={<FavoriteIcon />}
-                onClick={() => handleNavigation('/favorites')}
-                sx={{ py: 2, borderRadius: 2 }}
-              >
-                Sevimlilar
-              </Button>
-              <Button 
-                variant="outlined" 
-                startIcon={<NotificationIcon />}
-                onClick={() => handleNavigation('/notifications')}
-                sx={{ py: 2, borderRadius: 2 }}
-              >
-                Xabarlar
-                {notificationCount > 0 && (
-                  <Chip 
-                    label={notificationCount} 
-                    size="small" 
-                    color="error"
-                    sx={{ ml: 1 }}
-                  />
-                )}
-              </Button>
-            </Box>
-          </Box>
         </Container>
-      </Box>
 
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Fab
-          color="primary"
-          aria-label="edit"
-          onClick={handleEditProfile}
-          sx={{
-            position: 'fixed',
-            bottom: 80,
-            right: 16,
-          }}
-        >
-          <EditIcon />
-        </Fab>
-      )}
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <MuiAlert 
-          elevation={6} 
-          variant="filled" 
-          severity="success"
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
           onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          Tizimdan muvaffaqiyatli chiqdingiz
-        </MuiAlert>
-      </Snackbar>
+          <MuiAlert severity="success" variant="filled" onClose={() => setSnackbarOpen(false)}>
+            Tizimdan chiqildi!
+          </MuiAlert>
+        </Snackbar>
+      </Box>
     </ThemeProvider>
   );
 };

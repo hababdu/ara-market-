@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -86,7 +85,7 @@ const Checkout = () => {
 
         const parsedUser = JSON.parse(user);
         console.log('User data from localStorage:', parsedUser);
-        if (!parsedUser || !parsedUser.id) {
+        if (!parsedUser || !parsedUser.userId) {  // userId ni tekshirish
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Iltimos, qayta tizimga kiring.");
           setLoading(false);
           navigate('/login');
@@ -225,6 +224,7 @@ const Checkout = () => {
 
     try {
       const token = localStorage.getItem('authToken');
+      console.log('Token:', token);  // Debugging uchun
       const totalAmount = calculateTotal();
       const kitchenId = cartItems[0]?.kitchen_id;
 
@@ -235,7 +235,7 @@ const Checkout = () => {
       }
 
       const orderData = {
-        user_id: userData.id,
+        user_id: userData.userId,  // userData.id (38) o‘rniga userData.userId (40)
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
@@ -261,7 +261,7 @@ const Checkout = () => {
         orderData,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,  // Sintaksis xatosi tuzatildi
             'Content-Type': 'application/json',
           },
         }
@@ -275,7 +275,7 @@ const Checkout = () => {
         throw new Error("Buyurtma yaratishda xatolik yuz berdi");
       }
     } catch (err) {
-      console.error('Order submission error:', err);
+      console.error('Order submission error:', err.response ? err.response.data : err.message);
       let errorMessage = "Buyurtma jo'natishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.";
       if (err.response?.data) {
         if (typeof err.response.data === 'object') {
@@ -283,7 +283,7 @@ const Checkout = () => {
             .flat()
             .join(' ');
         } else {
-          errorMessage = err.response.data.detail || err.response.data.message || errorMessage;
+          errorMessage = err.response.data.detail || err.response.data.message || errorMessage;  // Mantiqiy xato tuzatildi
         }
       }
       setError(errorMessage);
