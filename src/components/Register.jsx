@@ -162,7 +162,7 @@ const Register = () => {
       setIsLoading(false);
       return;
     }
-    const phoneRegex = /^\+998\d{9}$/;
+    const phoneRegex = /^\+998\d+$/;
     if (!phoneRegex.test(formData.phone_number)) {
       setError("Telefon raqami +998 bilan boshlanib, 9 ta raqamdan iborat bo'lishi kerak.");
       setIsLoading(false);

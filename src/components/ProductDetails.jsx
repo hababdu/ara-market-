@@ -6,9 +6,14 @@ import {
   ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
   Star as StarIcon,
+  StarBorder as StarBorderIcon,
   Share as ShareIcon,
   Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon
+  FavoriteBorder as FavoriteBorderIcon,
+  FilterAlt as FilterIcon,
+  AddShoppingCart as AddToCartIcon,
+  RemoveShoppingCart as RemoveFromCartIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -21,21 +26,35 @@ import {
   Chip,
   Snackbar,
   Alert,
-  Badge
+  Badge,
+  Box,
+  Typography,
+  Divider,
+  Rating,
+  Skeleton,
+  MenuItem,
+  FormControl,
+  Select,
+  Tooltip
 } from '@mui/material';
-import { useMediaQuery } from '@mui/material';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width:768px)');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [modalQuantity, setModalQuantity] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
-  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -43,6 +62,9 @@ const ProductDetails = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [isFavorite, setIsFavorite] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [inCart, setInCart] = useState(false);
+  const [cartItemId, setCartItemId] = useState(null);
 
   const axiosInstance = axios.create({
     baseURL: 'https://hosilbek.pythonanywhere.com/api/',
@@ -51,46 +73,71 @@ const ProductDetails = () => {
     },
   });
 
-  // Savatdagi mahsulotlar sonini hisoblash
+  // Calculate cart items count and check if current product is in cart
   useEffect(() => {
-    const updateCartCount = () => {
+    const updateCartData = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
       const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
       setCartCount(totalItems);
+      
+      // Check if current product is in cart
+      const cartItem = cart.find(item => item.id === product?.id);
+      setInCart(!!cartItem);
+      setCartItemId(cartItem?.cartItemId);
     };
-    updateCartCount();
-    window.addEventListener('storage', updateCartCount);
-    return () => window.removeEventListener('storage', updateCartCount);
-  }, []);
+    
+    updateCartData();
+    window.addEventListener('storage', updateCartData);
+    return () => window.removeEventListener('storage', updateCartData);
+  }, [product]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productRes, productsRes] = await Promise.all([
+      const [productRes, productsRes, categoriesRes] = await Promise.all([
         axiosInstance.get(`user/products/${id}/`),
         axiosInstance.get('user/products/'),
+        axiosInstance.get('user/categories/'),
       ]);
+      
       setProduct(productRes.data);
-      setRelatedProducts(
-        productsRes.data
-          .filter((p) => p.category?.id === productRes.data.category?.id && p.id !== Number(id))
-          .slice(0, 4)
-      );
+      setAllProducts(productsRes.data);
+      
+      // Set categories with "All" option
+      const cats = [{ id: 'all', name: 'All Categories' }, ...categoriesRes.data];
+      setCategories(cats);
+      
+      // Set initial category to current product's category
+      setSelectedCategory(productRes.data.category?.id || 'all');
+      
       setError(null);
     } catch (err) {
       setError(
         err.response?.data?.message ||
         err.response?.data?.detail ||
-        'Mahsulotni yuklashda xatolik yuz berdi'
+        'Failed to load product details'
       );
     } finally {
       setLoading(false);
     }
   };
 
+  // Filter products based on selected category
+  useEffect(() => {
+    if (!product || !allProducts.length) return;
+    
+    let filtered = allProducts.filter(p => p.id !== Number(id));
+    
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category?.id === selectedCategory);
+    }
+    
+    setFilteredProducts(filtered.slice(0, 4));
+  }, [selectedCategory, allProducts, product, id]);
+
   useEffect(() => {
     fetchData();
-    // Sevgililarga qo'shilganligini tekshirish (demo uchun)
+    // Check if product is in favorites
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
     setIsFavorite(favorites.includes(Number(id)));
   }, [id]);
@@ -112,8 +159,10 @@ const ProductDetails = () => {
     if (existing) {
       existing.quantity += qty;
     } else {
+      const cartItemId = Date.now(); // Generate unique ID for cart item
       cart.push({
         id: product.id,
+        cartItemId, // Add unique identifier
         kitchen_id: product.kitchen?.id,
         product_id: product.id,
         title: product.title,
@@ -123,11 +172,26 @@ const ProductDetails = () => {
         photo: product.photo,
         user_id: userData.id,
       });
+      setCartItemId(cartItemId);
     }
 
     localStorage.setItem('cart', JSON.stringify(cart));
     window.dispatchEvent(new Event('storage'));
-    showSnackbar('Mahsulot savatga qo\'shildi!', 'success');
+    showSnackbar(`${qty} ${product.title} added to cart!`, 'success');
+    setInCart(true);
+  };
+
+  const removeFromCart = () => {
+    if (!product) return;
+    
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const updatedCart = cart.filter(item => item.id !== product.id);
+    
+    localStorage.setItem('cart', JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event('storage'));
+    showSnackbar(`${product.title} removed from cart`, 'info');
+    setInCart(false);
+    setCartItemId(null);
   };
 
   const toggleFavorite = () => {
@@ -135,11 +199,11 @@ const ProductDetails = () => {
     if (isFavorite) {
       const newFavorites = favorites.filter(favId => favId !== Number(id));
       localStorage.setItem('favorites', JSON.stringify(newFavorites));
-      showSnackbar('Sevimlilardan o\'chirildi', 'info');
+      showSnackbar('Removed from favorites', 'info');
     } else {
       favorites.push(Number(id));
       localStorage.setItem('favorites', JSON.stringify(favorites));
-      showSnackbar('Sevimlilarga qo\'shildi', 'success');
+      showSnackbar('Added to favorites', 'success');
     }
     setIsFavorite(!isFavorite);
   };
@@ -153,279 +217,646 @@ const ProductDetails = () => {
       }).catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
-      showSnackbar('Havola nusxalandi!', 'info');
+      showSnackbar('Link copied to clipboard!', 'info');
     }
+  };
+
+  const handleCategoryChange = (event) => {
+    setSelectedCategory(event.target.value);
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto py-6 px-4 flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="ml-2">Yuklanmoqda...</p>
-      </div>
+      <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Skeleton variant="rectangular" width={100} height={24} />
+        </Box>
+        
+        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 4 }}>
+          {/* Image placeholder */}
+          <Box sx={{ width: isMobile ? '100%' : '50%' }}>
+            <Skeleton variant="rectangular" height={isMobile ? 300 : 400} />
+          </Box>
+          
+          {/* Content placeholder */}
+          <Box sx={{ width: isMobile ? '100%' : '50%' }}>
+            <Skeleton variant="text" width="80%" height={40} />
+            <Skeleton variant="text" width="60%" height={24} sx={{ mb: 2 }} />
+            <Skeleton variant="text" width="40%" height={32} sx={{ mb: 3 }} />
+            
+            <Box sx={{ mb: 3 }}>
+              <Skeleton variant="text" width="20%" height={24} sx={{ mb: 1 }} />
+              <Skeleton variant="text" width="100%" height={80} />
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <Skeleton variant="rectangular" width={120} height={40} />
+              <Skeleton variant="rectangular" width={200} height={40} />
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
-  if (error && typeof error === 'string') {
+  if (error) {
     return (
-      <div className="container mx-auto py-6 px-4">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center text-blue-600 hover:text-blue-800 mb-6"
+      <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
+        <Button
+          onClick={() => navigate(-1)}
+          startIcon={<ArrowBackIcon />}
+          sx={{ mb: 3 }}
         >
-          <ArrowBackIcon className="mr-2" />
-          Orqaga qaytish
-        </button>
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
-          <p>{error}</p>
-        </div>
-      </div>
+          Back
+        </Button>
+        
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        
+        <Button
+          variant="contained"
+          onClick={fetchData}
+          sx={{ mt: 2 }}
+        >
+          Retry
+        </Button>
+      </Box>
     );
   }
 
   return (
-    <div className="container mx-auto py-4 px-4 max-w-6xl">
-      {/* Orqaga qaytish tugmasi */}
-      <button
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
+      {/* Back button */}
+      <Button
         onClick={() => navigate(-1)}
-        className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
+        startIcon={<ArrowBackIcon />}
+        sx={{ mb: 3 }}
       >
-        <ArrowBackIcon className="mr-2" />
-        Orqaga
-      </button>
+        Back
+      </Button>
 
-      {/* Asosiy kontent */}
+      {/* Main content */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6"
       >
-        <div className="flex flex-col md:flex-row">
-          {/* Mahsulot rasmi */}
-          <div className="w-full md:w-1/2 lg:w-2/5 relative">
-            <img
-              src={product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : '/placeholder-product.jpg'}
-              alt={product.title}
-              className="w-full h-64 md:h-96 object-contain p-4"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = '/placeholder-product.jpg';
-              }}
-            />
-            
-            {/* Mobil uchun tezkor amallar */}
-            {isMobile && (
-              <div className="absolute top-2 right-2 flex gap-2">
-                <IconButton
-                  onClick={toggleFavorite}
-                  size="small"
-                  sx={{ backgroundColor: 'rgba(255,255,255,0.8)' }}
-                >
-                  {isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                </IconButton>
-                <IconButton
-                  onClick={shareProduct}
-                  size="small"
-                  sx={{ backgroundColor: 'rgba(255,255,255,0.8)' }}
-                >
-                  <ShareIcon />
-                </IconButton>
-              </div>
-            )}
-          </div>
-
-          {/* Mahsulot ma'lumotlari */}
-          <div className="w-full md:w-1/2 lg:w-3/5 p-4 md:p-6">
-            <div className="flex justify-between items-start">
-              <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">
-                {product.title}
-              </h1>
-              
-              {/* Desktop uchun amallar */}
-              {!isMobile && (
-                <div className="flex gap-2">
-                  <IconButton onClick={toggleFavorite}>
-                    {isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                  </IconButton>
-                  <IconButton onClick={shareProduct}>
-                    <ShareIcon />
-                  </IconButton>
-                </div>
+        <Box sx={{
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+          boxShadow: 1,
+          overflow: 'hidden',
+          mb: 4
+        }}>
+          <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
+            {/* Product image */}
+            <Box sx={{
+              width: isMobile ? '100%' : '50%',
+              position: 'relative',
+              bgcolor: '#f9f9f9',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              p: isMobile ? 2 : 4,
+              minHeight: isMobile ? 300 : 400
+            }}>
+              {imageLoading && (
+                <Skeleton variant="rectangular" width="100%" height="100%" />
               )}
-            </div>
-
-            {/* Reyting (demo) */}
-            <div className="flex items-center mb-3">
-              <div className="flex text-yellow-400">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <StarIcon key={star} fontSize="small" />
-                ))}
-              </div>
-              <span className="text-gray-500 text-sm ml-1">(24 baho)</span>
-            </div>
-
-            {/* Narx */}
-            <div className="mb-4">
-              {product.discounted_price ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-2xl font-bold text-red-600">
-                    {parseFloat(product.discounted_price).toLocaleString('uz-UZ')} so'm
-                  </span>
-                  <span className="text-lg text-gray-500 line-through">
-                    {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
-                  </span>
-                  <Chip
-                    label={`${Math.round((1 - product.discounted_price / product.price) * 100)}% chegirma`}
-                    color="error"
-                    size="small"
-                  />
-                </div>
-              ) : (
-                <span className="text-2xl font-bold text-gray-800">
-                  {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
-                </span>
-              )}
-            </div>
-
-            {/* Tavsif */}
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-800 mb-2">Tavsif</h3>
-              <p className="text-gray-600 whitespace-pre-line">
-                {product.description || 'Tavsif mavjud emas'}
-              </p>
-            </div>
-
-            {/* Kategoriya va oshxona */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <h4 className="text-sm text-gray-500 mb-1">Kategoriya</h4>
-                <p className="font-medium">{product.category?.name || 'Noma\'lum'}</p>
-              </div>
-              <div>
-                <h4 className="text-sm text-gray-500 mb-1">Oshxona</h4>
-                <p className="font-medium">{product.kitchen?.name || 'Noma\'lum'}</p>
-              </div>
-            </div>
-
-            {/* Miqdor va savatga qo'shish */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-lg transition-colors"
-                  disabled={quantity <= 1}
-                >
-                  -
-                </button>
-                <span className="px-4 py-2 w-12 text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity((prev) => prev + 1)}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-lg transition-colors"
-                >
-                  +
-                </button>
-              </div>
-
-              <Button
-                onClick={() => {
-                  setModalQuantity(quantity);
-                  setModalOpen(true);
+              <img
+                src={product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : '/placeholder-product.jpg'}
+                alt={product.title}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: isMobile ? 300 : 400,
+                  objectFit: 'contain',
+                  display: imageLoading ? 'none' : 'block'
                 }}
-                variant="contained"
-                color="primary"
-                size="large"
-                startIcon={<CartIcon />}
-                sx={{ flex: 1, minWidth: '200px' }}
-              >
-                Savatga qo'shish
-                {cartCount > 0 && (
-                  <Badge
-                    badgeContent={cartCount}
-                    color="error"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        right: -10,
-                        top: -10,
-                      },
-                    }}
-                  />
+                onLoad={() => setImageLoading(false)}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/placeholder-product.jpg';
+                }}
+              />
+              
+              {/* Quick actions for mobile */}
+              {isMobile && (
+                <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 1 }}>
+                  <Tooltip title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+                    <IconButton
+                      onClick={toggleFavorite}
+                      size="small"
+                      sx={{ 
+                        bgcolor: 'background.paper',
+                        '&:hover': { bgcolor: 'action.hover' }
+                      }}
+                    >
+                      {isFavorite ? (
+                        <FavoriteIcon color="error" />
+                      ) : (
+                        <FavoriteBorderIcon />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Tooltip title="Share">
+                    <IconButton
+                      onClick={shareProduct}
+                      size="small"
+                      sx={{ 
+                        bgcolor: 'background.paper',
+                        '&:hover': { bgcolor: 'action.hover' }
+                      }}
+                    >
+                      <ShareIcon />
+                    </IconButton>
+                  </Tooltip>
+                  
+                  {inCart ? (
+                    <Tooltip title="Remove from cart">
+                      <IconButton
+                        onClick={removeFromCart}
+                        size="small"
+                        sx={{ 
+                          bgcolor: 'background.paper',
+                          '&:hover': { bgcolor: 'action.hover' }
+                        }}
+                      >
+                        <RemoveFromCartIcon color="error" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Add to cart">
+                      <IconButton
+                        onClick={() => addToCart(1)}
+                        size="small"
+                        sx={{ 
+                          bgcolor: 'background.paper',
+                          '&:hover': { bgcolor: 'action.hover' }
+                        }}
+                      >
+                        <AddToCartIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            {/* Product details */}
+            <Box sx={{
+              width: isMobile ? '100%' : '50%',
+              p: isMobile ? 2 : 4
+            }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h5" component="h1" sx={{ 
+                  fontWeight: 700,
+                  color: 'text.primary'
+                }}>
+                  {product.title}
+                </Typography>
+                
+                {/* Desktop actions */}
+                {!isMobile && (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Tooltip title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+                      <IconButton 
+                        onClick={toggleFavorite}
+                        aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        {isFavorite ? (
+                          <FavoriteIcon color="error" />
+                        ) : (
+                          <FavoriteBorderIcon />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    
+                    <Tooltip title="Share">
+                      <IconButton 
+                        onClick={shareProduct}
+                        aria-label="Share"
+                      >
+                        <ShareIcon />
+                      </IconButton>
+                    </Tooltip>
+                    
+                    {inCart ? (
+                      <Tooltip title="Remove from cart">
+                        <IconButton 
+                          onClick={removeFromCart}
+                          aria-label="Remove from cart"
+                        >
+                          <RemoveFromCartIcon color="error" />
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Add to cart">
+                        <IconButton 
+                          onClick={() => addToCart(1)}
+                          aria-label="Add to cart"
+                        >
+                          <AddToCartIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 )}
-              </Button>
-            </div>
-          </div>
-        </div>
+              </Box>
+
+              {/* Rating */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Rating
+                  value={4.5}
+                  precision={0.5}
+                  readOnly
+                  emptyIcon={<StarBorderIcon fontSize="inherit" />}
+                  sx={{ color: 'warning.main' }}
+                />
+                <Typography variant="body2" sx={{ ml: 1, color: 'text.secondary' }}>
+                  (24 reviews)
+                </Typography>
+              </Box>
+
+              {/* Price */}
+              <Box sx={{ mb: 3 }}>
+                {product.discounted_price ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 700,
+                      color: 'error.main'
+                    }}>
+                      {parseFloat(product.discounted_price).toLocaleString('uz-UZ')} so'm
+                    </Typography>
+                    <Typography variant="body1" sx={{ 
+                      color: 'text.secondary',
+                      textDecoration: 'line-through'
+                    }}>
+                      {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
+                    </Typography>
+                    <Chip
+                      label={`${Math.round((1 - product.discounted_price / product.price) * 100)}% off`}
+                      color="error"
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+                ) : (
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Description */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 600,
+                  mb: 1,
+                  color: 'text.primary'
+                }}>
+                  Description
+                </Typography>
+                <Typography variant="body1" sx={{ 
+                  color: 'text.secondary',
+                  whiteSpace: 'pre-line'
+                }}>
+                  {product.description || 'No description available'}
+                </Typography>
+              </Box>
+
+              {/* Category and kitchen */}
+              <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 2,
+                mb: 4
+              }}>
+                <Box>
+                  <Typography variant="caption" sx={{ 
+                    display: 'block',
+                    color: 'text.secondary',
+                    mb: 0.5
+                  }}>
+                    Category
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {product.category?.name || 'Unknown'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ 
+                    display: 'block',
+                    color: 'text.secondary',
+                    mb: 0.5
+                  }}>
+                    Kitchen
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {product.kitchen?.name || 'Unknown'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              {/* Quantity and add to cart */}
+              <Box sx={{ 
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 2
+              }}>
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  overflow: 'hidden'
+                }}>
+                  <Button
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    disabled={quantity <= 1}
+                    sx={{ 
+                      minWidth: 40,
+                      px: 1,
+                      '&:disabled': { opacity: 0.5 }
+                    }}
+                  >
+                    -
+                  </Button>
+                  <Typography sx={{ 
+                    width: 40,
+                    textAlign: 'center'
+                  }}>
+                    {quantity}
+                  </Typography>
+                  <Button
+                    onClick={() => setQuantity((prev) => prev + 1)}
+                    sx={{ minWidth: 40, px: 1 }}
+                  >
+                    +
+                  </Button>
+                </Box>
+
+                {inCart ? (
+                  <Button
+                    onClick={removeFromCart}
+                    variant="outlined"
+                    color="error"
+                    size="large"
+                    startIcon={<RemoveFromCartIcon />}
+                    sx={{ 
+                      flex: 1,
+                      minWidth: 200,
+                      py: 1.5
+                    }}
+                  >
+                    Remove from Cart
+                    <Badge
+                      badgeContent={cartCount}
+                      color="error"
+                      sx={{
+                        ml: 1,
+                        '& .MuiBadge-badge': {
+                          right: -10,
+                          top: -10,
+                        },
+                      }}
+                    />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setModalQuantity(quantity);
+                      setModalOpen(true);
+                    }}
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    startIcon={<CartIcon />}
+                    sx={{ 
+                      flex: 1,
+                      minWidth: 200,
+                      py: 1.5
+                    }}
+                  >
+                    Add to Cart
+                    <Badge
+                      badgeContent={cartCount}
+                      color="error"
+                      sx={{
+                        ml: 1,
+                        '& .MuiBadge-badge': {
+                          right: -10,
+                          top: -10,
+                        },
+                      }}
+                    />
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       </motion.div>
 
-      {/* Tegishli mahsulotlar */}
-      {relatedProducts.length > 0 && (
+      {/* Related products */}
+      {filteredProducts.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6"
         >
-          <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">
-            O'xshash mahsulotlar
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
-            {relatedProducts.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => navigate(`/products/${p.id}`)}
-                className="border border-gray-200 rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow flex flex-col"
-              >
-                <img
-                  src={p.photo ? `https://hosilbek.pythonanywhere.com${p.photo}` : '/placeholder-product.jpg'}
-                  alt={p.title}
-                  className="w-full h-32 object-contain rounded mb-2"
-                />
-                <h3 className="font-medium text-gray-800 text-sm line-clamp-2 mb-1">{p.title}</h3>
-                <div className="mt-auto">
-                  <p className="font-semibold text-gray-900">
-                    {parseFloat(p.discounted_price || p.price).toLocaleString('uz-UZ')} so'm
-                  </p>
-                  {p.discounted_price && (
-                    <p className="text-xs text-gray-500 line-through">
-                      {parseFloat(p.price).toLocaleString('uz-UZ')} so'm
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <Box sx={{ 
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 1,
+            p: isMobile ? 2 : 3,
+            mb: 4
+          }}>
+            <Box sx={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 3
+            }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600,
+                color: 'text.primary'
+              }}>
+                Similar Products
+              </Typography>
+              
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <Select
+                  value={selectedCategory}
+                  onChange={handleCategoryChange}
+                  IconComponent={FilterIcon}
+                  sx={{
+                    '& .MuiSelect-icon': {
+                      color: 'primary.main'
+                    }
+                  }}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: isSmallMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              gap: isMobile ? 2 : 3
+            }}>
+              {filteredProducts.map((p) => (
+                <motion.div
+                  key={p.id}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Box
+                    onClick={() => navigate(`/products/${p.id}`)}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      p: 2,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      '&:hover': {
+                        boxShadow: 2,
+                      }
+                    }}
+                  >
+                    <Box sx={{ 
+                      height: 120,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      mb: 2,
+                      bgcolor: '#f9f9f9',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}>
+                      <img
+                        src={p.photo ? `https://hosilbek.pythonanywhere.com${p.photo}` : '/placeholder-product.jpg'}
+                        alt={p.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                      />
+                      
+                      {/* Quick add to cart button */}
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart(1);
+                        }}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          bottom: 8,
+                          right: 8,
+                          bgcolor: 'background.paper',
+                          '&:hover': {
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText'
+                          }
+                        }}
+                      >
+                        <AddToCartIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    
+                    <Typography variant="body2" sx={{ 
+                      fontWeight: 500,
+                      mb: 1,
+                      height: 40,
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {p.title}
+                    </Typography>
+                    
+                    <Box sx={{ mt: 'auto' }}>
+                      <Typography variant="body1" sx={{ 
+                        fontWeight: 700,
+                        color: 'text.primary'
+                      }}>
+                        {parseFloat(p.discounted_price || p.price).toLocaleString('uz-UZ')} so'm
+                      </Typography>
+                      {p.discounted_price && (
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.secondary',
+                          textDecoration: 'line-through'
+                        }}>
+                          {parseFloat(p.price).toLocaleString('uz-UZ')} so'm
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </motion.div>
+              ))}
+            </Box>
+          </Box>
         </motion.div>
       )}
 
-      {/* Miqdor modali */}
+      {/* Quantity modal */}
       <Dialog
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>
-          Mahsulot miqdori
+        <DialogTitle sx={{ 
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          py: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}>
+          Select Quantity
           <IconButton
             aria-label="close"
             onClick={() => setModalOpen(false)}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-            }}
+            size="small"
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
-          <p className="mb-4">{product?.title} dan nechta qo'shmoqchisiz?</p>
-          <div className="flex items-center justify-center gap-4">
+        <DialogContent sx={{ py: 3 }}>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            How many <strong>{product?.title}</strong> would you like to add?
+          </Typography>
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2
+          }}>
             <Button
               variant="outlined"
               onClick={() => setModalQuantity(q => Math.max(1, q - 1))}
               size="large"
-              sx={{ minWidth: '40px' }}
+              sx={{ minWidth: 40 }}
             >
               -
             </Button>
@@ -436,30 +867,40 @@ const ProductDetails = () => {
                 if (!isNaN(val)) setModalQuantity(Math.max(1, val));
               }}
               inputProps={{ 
-                style: { textAlign: 'center', fontSize: '1.2rem' },
+                style: { 
+                  textAlign: 'center',
+                  fontSize: '1.2rem',
+                  padding: '8px'
+                },
                 min: 1,
                 type: 'number'
               }}
               size="medium"
-              sx={{ width: '80px' }}
+              sx={{ width: 80 }}
             />
             <Button
               variant="outlined"
               onClick={() => setModalQuantity(q => q + 1)}
               size="large"
-              sx={{ minWidth: '40px' }}
+              sx={{ minWidth: 40 }}
             >
               +
             </Button>
-          </div>
+          </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ 
+          px: 3,
+          py: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider'
+        }}>
           <Button 
             onClick={() => setModalOpen(false)} 
-            color="secondary"
+            color="inherit"
             size="large"
+            sx={{ mr: 2 }}
           >
-            Bekor qilish
+            Cancel
           </Button>
           <Button 
             onClick={() => {
@@ -470,13 +911,14 @@ const ProductDetails = () => {
             color="primary"
             size="large"
             startIcon={<CartIcon />}
+            sx={{ px: 3 }}
           >
-            Qo'shish ({modalQuantity})
+            Add ({modalQuantity})
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Xabar yorlig'i */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
@@ -487,11 +929,17 @@ const ProductDetails = () => {
           onClose={() => setSnackbarOpen(false)} 
           severity={snackbarSeverity}
           sx={{ width: '100%' }}
+          elevation={6}
+          iconMapping={{
+            success: <CheckCircleIcon fontSize="inherit" />,
+            info: <CartIcon fontSize="inherit" />,
+            error: <RemoveFromCartIcon fontSize="inherit" />
+          }}
         >
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </div>
+    </Box>
   );
 };
 
