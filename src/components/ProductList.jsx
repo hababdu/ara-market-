@@ -10,6 +10,9 @@ import {
   Star as StarIcon,
   StarBorder as StarEmptyIcon,
   Refresh as RefreshIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const ProductsList = () => {
@@ -19,36 +22,28 @@ const ProductsList = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
 
-  // Get token from localStorage
-  const token = localStorage.getItem('token');
-
-  // Axios instance with default headers
   const axiosInstance = axios.create({
     baseURL: API_URL,
     headers: {
-      'Authorization': token ? `Bearer ${token}` : '',
       'Content-Type': 'application/json',
     },
   });
 
-  // Fetch products
   const fetchProducts = async () => {
-    if (!token) {
-      setError('Foydalanuvchi tizimga kirmagan');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
       const response = await axiosInstance.get('');
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
+      const errorMessage = err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
       setError(errorMessage);
       setProducts([]);
     } finally {
@@ -60,31 +55,13 @@ const ProductsList = () => {
     fetchProducts();
   }, []);
 
-  // Helper function to show snackbar
   const showSnackbar = (message, severity) => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
     setSnackbarOpen(true);
+    setTimeout(() => setSnackbarOpen(false), 3000);
   };
 
-  // Handle API errors
-  const handleApiError = (err) => {
-    if (err.response?.status === 400) {
-      const errorMessage =
-        err.response?.data?.message ||
-        Object.values(err.response?.data || {})
-          .flat()
-          .join(', ') ||
-        'Ma\'lumotlar noto\'g\'ri';
-      showSnackbar(`Xatolik: ${errorMessage}`, 'error');
-    } else if (err.response?.status === 401) {
-      showSnackbar('Tizimga qayta kirish kerak. Sessiya tugagan.', 'error');
-    } else {
-      showSnackbar(err.response?.data?.message || 'Amalni bajarishda xatolik', 'error');
-    }
-  };
-
-  // Render rating stars
   const renderRating = (rating) => {
     const stars = [];
     const maxStars = 5;
@@ -92,11 +69,11 @@ const ProductsList = () => {
 
     for (let i = 1; i <= maxStars; i++) {
       if (i <= roundedRating) {
-        stars.push(<StarIcon key={i} className="text-blue-500 w-4 h-4" />);
+        stars.push(<StarIcon key={i} className="text-yellow-500 w-3 h-3" />);
       } else if (i - 0.5 === roundedRating) {
-        stars.push(<StarIcon key={i} className="text-blue-500 w-4 h-4 opacity-50" />);
+        stars.push(<StarIcon key={i} className="text-yellow-500 w-3 h-3 opacity-50" />);
       } else {
-        stars.push(<StarEmptyIcon key={i} className="text-blue-500 w-4 h-4" />);
+        stars.push(<StarEmptyIcon key={i} className="text-yellow-500 w-3 h-3" />);
       }
     }
 
@@ -108,40 +85,37 @@ const ProductsList = () => {
     );
   };
 
-  // Close snackbar
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
-  };
+  const filteredProducts = products.filter((product) =>
+    product.title?.toLowerCase().includes(search.toLowerCase())
+  );
 
-  // Conditional rendering
-  if (!token) {
-    return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
-          <p>Iltimos, tizimga kiring!</p>
-        </div>
-      </div>
-    );
-  }
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'price-asc') return a.price - b.price;
+    if (sortBy === 'price-desc') return b.price - a.price;
+    return 0;
+  });
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="ml-2">Mahsulotlar yuklanmoqda...</p>
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="bg-white shadow-md rounded-lg px-6 py-4 flex items-center gap-3">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-500"></div>
+          <p className="text-blue-600 font-medium">Mahsulotlar yuklanmoqda...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg max-w-md mx-4">
           <p>{error}</p>
-          <button 
+          <button
             onClick={fetchProducts}
-            className="mt-2 text-red-700 hover:text-red-900 font-medium"
+            className="mt-2 text-red-700 hover:text-red-900 font-medium flex items-center"
           >
+            <RefreshIcon className="mr-1" />
             Qayta urinish
           </button>
         </div>
@@ -150,13 +124,100 @@ const ProductsList = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-blue-600">Barcha mahsulotlar</h1>
-        <div className="flex gap-2">
+    <div className="container mx-auto py-4 px-2 sm:px-4">
+      {/* Mobile Header with Search and Filter */}
+      <div className="sm:hidden mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-xl font-bold text-blue-600">
+            Mahsulotlar ({products.length})
+          </h1>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              className="p-2 rounded-full bg-blue-100 text-blue-600"
+            >
+              <SearchIcon />
+            </button>
+            <button 
+              onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
+              className="p-2 rounded-full bg-blue-100 text-blue-600"
+            >
+              <FilterIcon />
+            </button>
+          </div>
+        </div>
+
+        {mobileSearchOpen && (
+          <div className="relative mb-2">
+            <input
+              type="text"
+              placeholder="Mahsulot qidirish..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <SearchIcon className="absolute left-3 top-3 text-gray-400" />
+            <button 
+              onClick={() => setMobileSearchOpen(false)}
+              className="absolute right-3 top-3 text-gray-400"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        )}
+
+        {mobileFilterOpen && (
+          <div className="bg-white p-3 rounded-lg shadow-md mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-medium">Tartiblash</h3>
+              <button onClick={() => setMobileFilterOpen(false)}>
+                <CloseIcon className="text-gray-500" />
+              </button>
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="default">Standart tartib</option>
+              <option value="price-asc">Narx: pastdan yuqoriga</option>
+              <option value="price-desc">Narx: yuqoridan pastga</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden sm:flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-blue-600">
+          Barcha mahsulotlar ({products.length})
+        </h1>
+
+        <div className="flex flex-wrap gap-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Qidiruv..."
+              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <SearchIcon className="absolute left-3 top-3 text-gray-400" />
+          </div>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="default">Tartiblash</option>
+            <option value="price-asc">Narx: pastdan yuqoriga</option>
+            <option value="price-desc">Narx: yuqoridan pastga</option>
+          </select>
+
           <button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center"
             onClick={fetchProducts}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
             disabled={loading}
           >
             <RefreshIcon className="mr-1" />
@@ -165,43 +226,52 @@ const ProductsList = () => {
         </div>
       </div>
 
-      {(!Array.isArray(products) || products.length === 0) ? (
-        <div className="flex justify-center items-center min-h-[200px]">
-          <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4">
-            <p>Mahsulotlar topilmadi.</p>
-          </div>
+      {sortedProducts.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">
+          {search ? `"${search}" bo‘yicha hech narsa topilmadi` : 'Mahsulotlar topilmadi.'}
+          <button 
+            onClick={() => {
+              setSearch('');
+              setSortBy('default');
+            }}
+            className="block mx-auto mt-2 text-blue-600 hover:text-blue-800"
+          >
+            Filtrlarni tozalash
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {sortedProducts.map((product) => (
             <Link
               to={`/products/${product.id}`}
               key={product.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-200"
+              className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200 flex flex-col h-full"
             >
               {product.photo ? (
-                <img
-                  src={`https://hosilbek.pythonanywhere.com${product.photo}`}
-                  alt={product.title}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="relative pt-[75%] overflow-hidden">
+                  <img
+                    src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+                    alt={product.title}
+                    className="absolute top-0 left-0 w-full h-full object-cover"
+                  />
+                </div>
               ) : (
-                <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                  <FastfoodIcon className="text-gray-400 w-12 h-12" />
+                <div className="relative pt-[75%] bg-gray-100 flex items-center justify-center">
+                  <FastfoodIcon className="text-gray-400 w-12 h-12 absolute" />
                 </div>
               )}
 
-              <div className="p-4">
+              <div className="p-3 flex-grow flex flex-col">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg truncate">
+                  <h3 className="font-semibold text-base truncate" title={product.title}>
                     {product.title || 'Yangi mahsulot'}
                   </h3>
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
                     {product.unit}
                   </span>
                 </div>
 
-                <p className="text-gray-600 text-sm mb-3 line-clamp-3">
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2 flex-grow">
                   {product.description || 'Tavsif mavjud emas'}
                 </p>
 
@@ -214,44 +284,30 @@ const ProductsList = () => {
                     <CategoryIcon className="w-3 h-3 mr-1" />
                     {product.category?.name || 'Noma\'lum'}
                   </span>
-                  {product.subcategory && (
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                      {product.subcategory.name}
-                    </span>
-                  )}
                 </div>
 
-                <div className="mb-2">
-                  <div className="flex items-center mb-1">
-                    <PriceIcon className="text-blue-500 w-4 h-4 mr-1" />
-                    <span className="font-bold">
-                      {parseFloat(product.price).toLocaleString()} so'm
-                    </span>
-                  </div>
-
-                  {parseFloat(product.discount) > 0 && (
+                <div className="mt-auto">
+                  <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center">
-                      <DiscountIcon className="text-red-500 w-4 h-4 mr-1" />
-                      <span className="text-red-500 line-through">
-                        {parseFloat(product.discount).toLocaleString()} so'm
+                      <PriceIcon className="text-blue-500 w-4 h-4 mr-1" />
+                      <span className="font-bold text-sm">
+                        {parseFloat(product.price).toLocaleString()} so'm
                       </span>
                     </div>
+                    {parseFloat(product.discount) > 0 && (
+                      <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">
+                        -{parseFloat(product.discount).toLocaleString()} so'm
+                      </span>
+                    )}
+                  </div>
+
+                  {product.discounted_price && (
+                    <p className="text-green-600 font-bold text-sm mb-2">
+                      {parseFloat(product.discounted_price).toLocaleString()} so'm
+                    </p>
                   )}
-                </div>
 
-                {product.discounted_price && (
-                  <p className="text-blue-600 font-bold text-sm mb-2">
-                    Chegirmadagi narx: {parseFloat(product.discounted_price).toLocaleString()} so'm
-                  </p>
-                )}
-
-                {renderRating(product.rating || 0)}
-
-                <div className="flex justify-between text-xs text-gray-500 mt-3">
-                  <span>
-                    {product.created_at ? new Date(product.created_at).toLocaleDateString() : 'Yangi'}
-                  </span>
-                  <span>ID: {product.id || '—'}</span>
+                  {renderRating(product.rating || 0)}
                 </div>
               </div>
             </Link>
@@ -259,19 +315,15 @@ const ProductsList = () => {
         </div>
       )}
 
-      {/* Snackbar */}
+      {/* Snackbar Notification */}
       {snackbarOpen && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded shadow-lg ${
+        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg flex items-center ${
           snackbarSeverity === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
-          <div className="flex items-center justify-between">
-            <p>{snackbarMessage}</p>
-            <button onClick={handleCloseSnackbar} className="ml-4">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
+        } text-white max-w-xs sm:max-w-md`}>
+          <p className="flex-grow text-sm">{snackbarMessage}</p>
+          <button onClick={() => setSnackbarOpen(false)} className="ml-2">
+            <CloseIcon className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>
