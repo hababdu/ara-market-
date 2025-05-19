@@ -69,35 +69,30 @@ const Checkout = () => {
     longitude: null,
     detected_at: null,
   });
+  const user = localStorage.getItem('userData');
+  const cart = localStorage.getItem('cart') || '[]';
+  const token = localStorage.getItem('authToken');
 
   useEffect(() => {
+    if (!token) {
+      navigate('/register'); // Agar token yo'q bo'lsa, register sahifasiga yo'naltir
+      return;
+    }
+
     const loadData = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        const user = localStorage.getItem('userData');
-        const cart = localStorage.getItem('cart') || '[]';
 
-        if (!token || !user) {
+
+        const parsedUser = JSON.parse(user);
+        console.log('User data from localStorage:', parsedUser);
+        if (!parsedUser || !parsedUser.id) {
+          setError("Foydalanuvchi ma'lumotlari noto'g'ri. Iltimos, qayta tizimga kiring.");
           setLoading(false);
           navigate('/register');
           return;
         }
 
-        const parsedUser = JSON.parse(user);
-        console.log('User data from localStorage:', parsedUser);
-        if (!parsedUser || !parsedUser.userId) {  // userId ni tekshirish
-          setError("Foydalanuvchi ma'lumotlari noto'g'ri. Iltimos, qayta tizimga kiring.");
-          setLoading(false);
-          navigate('/login');
-          return;
-        }
-
-        const parsedCart = JSON.parse(cart);
-        if (!Array.isArray(parsedCart) || parsedCart.length === 0) {
-          setError("Savat bo'sh. Iltimos, mahsulot qo'shing.");
-          setLoading(false);
-          return;
-        }
+     
 
         setUserData(parsedUser);
         setCartItems(parsedCart);
@@ -224,7 +219,7 @@ const Checkout = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      console.log('Token:', token);  // Debugging uchun
+      console.log('Token:', token);
       const totalAmount = calculateTotal();
       const kitchenId = cartItems[0]?.kitchen_id;
 
@@ -235,7 +230,7 @@ const Checkout = () => {
       }
 
       const orderData = {
-        user_id: userData.userId,  // userData.id (38) o‘rniga userData.userId (40)
+        user_id: userData.userId,
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
@@ -261,7 +256,7 @@ const Checkout = () => {
         orderData,
         {
           headers: {
-            Authorization: `Bearer ${token}`,  // Sintaksis xatosi tuzatildi
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }
@@ -283,7 +278,7 @@ const Checkout = () => {
             .flat()
             .join(' ');
         } else {
-          errorMessage = err.response.data.detail || err.response.data.message || errorMessage;  // Mantiqiy xato tuzatildi
+          errorMessage = err.response.data.detail || err.response.data.message || errorMessage;
         }
       }
       setError(errorMessage);
