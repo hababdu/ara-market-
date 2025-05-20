@@ -69,22 +69,32 @@ const Checkout = () => {
     longitude: null,
     detected_at: null,
   });
+
   const user = localStorage.getItem('userData');
   const cart = localStorage.getItem('cart') || '[]';
   const token = localStorage.getItem('authToken');
 
   useEffect(() => {
     if (!token) {
-      navigate('/register'); // Agar token yo'q bo'lsa, register sahifasiga yo'naltir
+      navigate('/register');
       return;
     }
 
     const loadData = async () => {
       try {
-
-
         const parsedUser = JSON.parse(user);
+        let parsedCart;
+        
+        try {
+          parsedCart = JSON.parse(cart);
+        } catch (e) {
+          console.error('Error parsing cart:', e);
+          parsedCart = [];
+        }
+
         console.log('User data from localStorage:', parsedUser);
+        console.log('Cart data from localStorage:', parsedCart);
+
         if (!parsedUser || !parsedUser.id) {
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Iltimos, qayta tizimga kiring.");
           setLoading(false);
@@ -92,7 +102,10 @@ const Checkout = () => {
           return;
         }
 
-     
+        if (!Array.isArray(parsedCart)) {
+          console.error('Cart data is not an array:', parsedCart);
+          parsedCart = [];
+        }
 
         setUserData(parsedUser);
         setCartItems(parsedCart);
@@ -110,7 +123,7 @@ const Checkout = () => {
     };
 
     loadData();
-  }, [navigate]);
+  }, [navigate, token, user, cart]);
 
   const calculateTotal = useCallback(() =>
     cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -124,7 +137,7 @@ const Checkout = () => {
 
   const detectLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationError("Brauzeringiz geolokatsiyani qo‘llab-quvvatlamaydi");
+      setLocationError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi");
       setLocationPermissionDenied(true);
       setShowLocationDialog(true);
       return;
@@ -230,7 +243,7 @@ const Checkout = () => {
       }
 
       const orderData = {
-        user_id: userData.userId,
+        user_id: userData.id,
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
@@ -285,7 +298,7 @@ const Checkout = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [cartItems, deliveryInfo, navigate, userData]);
+  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal]);
 
   const handleBack = useCallback(() => {
     navigate(-1);
