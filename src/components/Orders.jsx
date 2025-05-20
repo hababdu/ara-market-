@@ -1,334 +1,108 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  CircularProgress,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  Alert,
-  Stack,
-  Chip,
-  Button,
-} from '@mui/material';
-import { LocalShipping, Restaurant, Person, AttachMoney, Phone, Home, AccessTime } from '@mui/icons-material';
+import { Link } from 'react-router-dom'; // Agar React Router ishlatilsa, login sahifasiga yo‘naltirish uchun
 
 const OrderPage = () => {
   const [orders, setOrders] = useState([]);
-  const [productsMap, setProductsMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
-
-  const token = localStorage.getItem('token');
-  const BASE_API_URL = 'https://hosilbek.pythonanywhere.com/api/';
-  const ORDERS_API = `${BASE_API_URL}order-history/`; // Update this if endpoint changes, e.g., 'orders/'
-  const PRODUCTS_API = `${BASE_API_URL}product/`;
-
-  const fetchOrders = async () => {
-    if (!token) {
-      setError('Tizimga kirish uchun token topilmadi. Iltimos, qayta kiring.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      console.log('Fetching orders with token:', token); // Debug: Log token
-
-      const orderRes = await axios.get(ORDERS_API, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log('Order response:', orderRes.data); // Debug: Log response
-
-      // Handle API response structure
-      const ordersData = Array.isArray(orderRes.data)
-        ? orderRes.data
-        : Array.isArray(orderRes.data?.data)
-        ? orderRes.data.data
-        : [];
-
-      if (!ordersData.length) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      setOrders(ordersData);
-
-      // Extract unique product IDs
-      const productIds = [...new Set(
-        ordersData.flatMap(order => (order.order_items || []).map(item => item.product).filter(Boolean))
-      )];
-
-      if (productIds.length) {
-        const productRes = await Promise.all(
-          productIds.map(id =>
-            axios
-              .get(`${PRODUCTS_API}${id}/`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              .catch(err => {
-                console.warn(`Failed to fetch product ${id}:`, err.message);
-                return null;
-              })
-          )
-        );
-
-        const productMap = {};
-        productRes.forEach(res => {
-          if (res?.data) productMap[res.data.id] = res.data;
-        });
-        setProductsMap(productMap);
-      }
-    } catch (err) {
-      console.error('Order fetch error:', err);
-      let errorMessage = 'Buyurtmalarni yuklashda xatolik yuz berdi';
-      if (err.response?.status === 404) {
-        errorMessage = 'Buyurtmalar tarixi topilmadi. API manzili to‘g‘riligini tekshiring.';
-      } else if (err.response?.status === 401) {
-        errorMessage = 'Autentifikatsiya xatosi: Token yaroqsiz yoki muddati o‘tgan.';
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
-
-      // Auto-retry up to 3 times
-      if (retryCount < 3) {
-        console.log(`Retrying... Attempt ${retryCount + 1}/3`);
-        setTimeout(() => setRetryCount(c => c + 1), 2000);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchOrders();
-  }, [retryCount]);
+    const fetchOrders = async () => {
+      try {
+        const token = localStorage.getItem('authToken'); // localStorage dan tokenni olish
+        if (!token) {
+          throw new Error('Token topilmadi. Iltimos, tizimga kiring.');
+        }
 
-  const getStatusChip = (status) => {
-    if (!status) return <Chip label="Noma'lum" color="default" size="small" />;
+        const response = await fetch('https://hosilbek.pythonanywhere.com/api/user/order-history/', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-    const lowerStatus = status.toLowerCase();
-    let color = 'default';
-
-    if (lowerStatus.includes('tayyor') || lowerStatus.includes('completed')) color = 'success';
-    else if (lowerStatus.includes('kutish') || lowerStatus.includes('pending')) color = 'warning';
-    else if (lowerStatus.includes('bekor') || lowerStatus.includes('cancel')) color = 'error';
-    else if (lowerStatus.includes('yetkazish') || lowerStatus.includes('deliver')) color = 'primary';
-
-    return <Chip label={status} color={color} size="small" />;
-  };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
-        <CircularProgress />
-        {retryCount > 0 && (
-          <Typography variant="body2" color="text.secondary" ml={2}>
-            Qayta urinish {retryCount}/3...
-          </Typography>
-        )}
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box p={3}>
-        <Alert
-          severity="error"
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setRetryCount(0);
-                fetchOrders();
-              }}
-            >
-              Qayta urinish
-            </Button>
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Ruxsat berilmadi. Token noto‘g‘ri yoki muddati o‘tgan.');
           }
-        >
-          {error}
-        </Alert>
-      </Box>
-    );
-  }
+          throw new Error(`Ma'lumotlarni olishda xato yuz berdi: ${response.statusText}`);
+        }
 
-  if (!orders.length) {
-    return (
-      <Box p={3} textAlign="center">
-        <Alert severity="info" sx={{ maxWidth: 600, margin: '0 auto' }}>
-          Hozircha buyurtmalar mavjud emas
-          <Button
-            variant="outlined"
-            sx={{ mt: 2, display: 'block', mx: 'auto' }}
-            onClick={() => window.location.href = '/products'}
-          >
-            Mahsulotlar sahifasiga o'tish
-          </Button>
-        </Alert>
-      </Box>
-    );
-  }
+        const data = await response.json();
+        setOrders(data);
+        console.log(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
 
   return (
-    <Box p={3} maxWidth="1200px" margin="0 auto">
-      <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-        Buyurtmalar tarixi
-      </Typography>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full bg-white shadow-lg rounded-lg p-6">
+        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">Foydalanuvchi Buyurtmalari</h1>
 
-      <Stack spacing={3}>
-        {orders.map(order => (
-          <Card key={order.id} elevation={3}>
-            <CardContent>
-              <Stack spacing={2}>
-                {/* Order Header */}
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="h6" fontWeight="bold">
-                    Buyurtma #{order.id}
-                  </Typography>
-                  {getStatusChip(order.status)}
-                </Box>
+        {loading && (
+          <div className="text-center text-gray-600 italic">Yuklanmoqda...</div>
+        )}
 
-                <Box display="flex" justifyContent="space-between" flexWrap="wrap">
-                  <Typography variant="body2" color="text.secondary">
-                    <AccessTime fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                    {new Date(order.created_at).toLocaleString('uz-UZ')}
-                  </Typography>
-                  <Typography variant="body2">
-                    <AttachMoney fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                    Jami: {order.total_amount?.toLocaleString() || '0'} so'm
-                  </Typography>
-                </Box>
+        {error && (
+          <div className="text-center text-red-500 font-medium mb-4">
+            {error}
+            {error.includes('Token topilmadi') && (
+              <div className="mt-2">
+                <Link
+                  to="/login"
+                  className="text-blue-600 hover:underline"
+                >
+                  Tizimga kirish
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
-                <Divider />
-
-                {/* Customer Info */}
-                <Box>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <Person fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                    Mijoz ma'lumotlari
-                  </Typography>
-                  <Stack spacing={1} pl={3}>
-                    <Typography variant="body2">
-                      <Phone fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                      Telefon: {order.contact_number || '—'}
-                    </Typography>
-                    <Typography variant="body2">
-                      <Home fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                      Manzil: {order.shipping_address || '—'}
-                    </Typography>
-                    <Typography variant="body2">
-                      To'lov usuli: {order.payment === 'naqd' ? 'Naqd' : order.payment || '—'}
-                    </Typography>
-                    {order.notes && (
-                      <Typography variant="body2" fontStyle="italic">
-                        Izoh: {order.notes}
-                      </Typography>
-                    )}
-                  </Stack>
-                </Box>
-
-                <Divider />
-
-                {/* Products */}
-                <Box>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Mahsulotlar
-                  </Typography>
-                  <List dense>
-                    {order.order_items?.length ? (
-                      order.order_items.map(item => {
-                        const product = productsMap[item.product];
-                        return (
-                          <ListItem key={item.id} divider>
-                            <ListItemText
-                              primary={product?.title || 'Nomaʼlum mahsulot'}
-                              secondary={`${item.quantity} x ${item.price?.toLocaleString() || '0'} so'm`}
-                            />
-                            <Typography fontWeight="bold">
-                              {(item.quantity * (item.price || 0)).toLocaleString()} so'm
-                            </Typography>
-                          </ListItem>
-                        );
-                      })
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Mahsulotlar mavjud emas
-                      </Typography>
-                    )}
-                  </List>
-                </Box>
-
-                <Divider />
-
-                {/* Kitchen Info */}
-                {order.kitchen && (
-                  <Box>
-                    <Typography variant="subtitle1" gutterBottom>
-                      <Restaurant fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                      Oshxona
-                    </Typography>
-                    <Stack spacing={1} pl={3}>
-                      <Typography variant="body2">
-                        Nomi: {order.kitchen.name || '—'}
-                      </Typography>
-                      <Typography variant="body2">
-                        Maosh: {order.kitchen_salary?.toLocaleString() || '0'} so'm
-                      </Typography>
-                      {order.kitchen_time && (
-                        <Typography variant="body2">
-                          Tayyorlanish vaqti: {order.kitchen_time}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Box>
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-blue-600 text-white">
+                  <th className="py-3 px-4 text-left">ID</th>
+                  <th className="py-3 px-4 text-left">Sana</th>
+                  <th className="py-3 px-4 text-left">Umumiy Narx</th>
+                  <th className="py-3 px-4 text-left">Holati</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length > 0 ? (
+                  orders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="border-b hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-3 px-4">{order.id}</td>
+                      <td className="py-3 px-4">{order.date || 'N/A'}</td>
+                      <td className="py-3 px-4">{order.total_price || 'N/A'}</td>
+                      <td className="py-3 px-4">{order.status || 'N/A'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="py-3 px-4 text-center text-gray-500">
+                      Buyurtmalar topilmadi
+                    </td>
+                  </tr>
                 )}
-
-                {/* Courier Info */}
-                {order.courier && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <Typography variant="subtitle1" gutterBottom>
-                        <LocalShipping fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                        Kuryer
-                      </Typography>
-                      <Stack spacing={1} pl={3}>
-                        <Typography variant="body2">
-                          Nomi: {order.courier || '—'}
-                        </Typography>
-                        <Typography variant="body2">
-                          Maosh: {order.courier_salary?.toLocaleString() || '0'} so'm
-                        </Typography>
-                        {order.courier_time && (
-                          <Typography variant="body2">
-                            Yetkazish vaqti: {order.courier_time}
-                          </Typography>
-                        )}
-                      </Stack>
-                    </Box>
-                  </>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        ))}
-      </Stack>
-    </Box>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
