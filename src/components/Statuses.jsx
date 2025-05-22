@@ -142,6 +142,8 @@ const ActiveOrdersDashboard = () => {
     setSuccess('');
 
     const token = localStorage.getItem('authToken');
+
+    console.log('Token:', token);
     if (!token) {
       setError('Tizimga kirish kerak');
       navigate('/login', { replace: true });
