@@ -102,6 +102,7 @@ const ActiveOrdersDashboard = () => {
       });
 
       const ordersData = Array.isArray(response.data) ? response.data : [];
+      console.log(ordersData)
       setOrders(ordersData);
       setLastFetch(new Date().toISOString());
     } catch (err) {
