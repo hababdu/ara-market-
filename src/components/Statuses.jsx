@@ -93,6 +93,7 @@ const ActiveOrdersDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const token = localStorage.getItem('authToken');
+  console.log('Token:', token);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -141,9 +142,7 @@ const ActiveOrdersDashboard = () => {
     setError('');
     setSuccess('');
 
-    const token = localStorage.getItem('authToken');
 
-    console.log('Token:', token);
     if (!token) {
       setError('Tizimga kirish kerak');
       navigate('/login', { replace: true });
