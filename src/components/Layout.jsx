@@ -138,6 +138,13 @@ const Layout = () => {
                 Buyurtmalar
               </button>
               <button 
+                onClick={() => handleNavigate('/status')} 
+                className="text-white hover:text-blue-200 flex items-center py-2"
+              >
+                <OrdersIcon className="mr-3" />
+                Statuslar
+              </button>
+              <button 
                 onClick={() => handleNavigate('/promotions')} 
                 className="text-white hover:text-blue-200 flex items-center py-2"
               >

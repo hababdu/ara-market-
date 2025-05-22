@@ -278,7 +278,7 @@ const Checkout = () => {
       if (response.data && response.data.id) {
         localStorage.removeItem('cart');
         setSuccess(`Buyurtma muvaffaqiyatli qabul qilindi! Buyurtma raqami: #${response.data.id}`);
-        setTimeout(() => navigate('/orders'), 3000);
+        setTimeout(() => navigate('/status'), 3000);
       } else {
         throw new Error("Buyurtma yaratishda xatolik yuz berdi");
       }
