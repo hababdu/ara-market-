@@ -93,7 +93,6 @@ const ActiveOrdersDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const token = localStorage.getItem('authToken');
-  console.log('Token:', token);
 
   const fetchOrders = async () => {
     setLoading(true);
