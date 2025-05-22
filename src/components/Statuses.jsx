@@ -14,15 +14,13 @@ import {
   Chip,
   List,
   ListItem,
-  InputAdornment,
-  Paper,
   ListItemText,
   ListItemAvatar,
   Avatar,
   Grid,
-  Tabs,
-  Tab,
   TextField,
+  InputAdornment,
+  Paper,
   IconButton,
   Collapse,
   useMediaQuery,
@@ -50,9 +48,9 @@ const BASE_URL = 'https://hosilbek.pythonanywhere.com';
 const theme = createTheme({
   palette: {
     primary: { main: '#1976d2' }, // buyurtma_tushdi
-    secondary: { main: '#7b1fa2' }, // qabul_qilindi
-    warning: { main: '#f57c00' }, // yetkazilmoqda
-    success: { main: '#388e3c' }, // yetkazib_berildi
+    secondary: { main: '#7b1fa2' }, // kuryer_oldi
+    warning: { main: '#f57c00' }, // kuryer_yolda
+    success: { main: '#388e3c' }, // buyurtma_topshirildi
     info: { main: '#0288d1' }, // oshxona_vaqt_belgiladi
     background: { default: '#f5f7fa' }
   },
@@ -71,11 +69,6 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderRadius: '12px', textTransform: 'none', fontWeight: 600 }
       }
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: { textTransform: 'none', fontWeight: 600, fontSize: '1rem' }
-      }
     }
   }
 });
@@ -88,16 +81,17 @@ const ActiveOrdersDashboard = () => {
   const [error, setError] = useState('');
   const [lastFetch, setLastFetch] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
   const [expandedOrder, setExpandedOrder] = useState(null);
-  const token = localStorage.getItem('authToken');
 
   const fetchOrders = async () => {
     setLoading(true);
     setError('');
+
+    const token = localStorage.getItem('authToken');
     if (!token) {
       setError('Tizimga kirish talab qilinadi');
       localStorage.setItem('authError', 'Tizimga kirish talab qilinadi. Iltimos, login qiling.');
+      navigate('/login', { replace: true });
       setLoading(false);
       return;
     }
@@ -116,9 +110,7 @@ const ActiveOrdersDashboard = () => {
         if (err.response.status === 401) {
           errorMessage = 'Sessiya tugagan. Iltimos, qayta kiring';
           localStorage.setItem('authError', errorMessage);
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userProfile');
+          localStorage.removeItem('authToken');
           navigate('/login', { replace: true });
         } else {
           errorMessage = err.response.data?.detail || err.response.data?.message || JSON.stringify(err.response.data) || errorMessage;
@@ -142,9 +134,9 @@ const ActiveOrdersDashboard = () => {
     const statusMap = {
       'buyurtma_tushdi': { label: 'Yangi', color: 'primary', icon: <AccessTime /> },
       'oshxona_vaqt_belgiladi': { label: 'Oshxona vaqt belgilaydi', color: 'info', icon: <AccessTime /> },
-      'qabul_qilindi': { label: 'Qabul qilindi', color: 'secondary', icon: <CheckCircle /> },
-      'yetkazilmoqda': { label: 'Yetkazilmoqda', color: 'warning', icon: <LocalShipping /> },
-      'yetkazib_berildi': { label: 'Yetkazib berildi', color: 'success', icon: <CheckCircle /> }
+      'kuryer_oldi': { label: 'Qabul qilindi', color: 'secondary', icon: <CheckCircle /> },
+      'kuryer_yolda': { label: 'Yetkazilmoqda', color: 'warning', icon: <LocalShipping /> },
+      'buyurtma_topshirildi': { label: 'Yetkazib berildi', color: 'success', icon: <CheckCircle /> }
     };
     const config = statusMap[status] || { label: status, color: 'default', icon: null };
     return (
@@ -157,6 +149,23 @@ const ActiveOrdersDashboard = () => {
         sx={{ fontWeight: 'bold', borderRadius: '8px' }}
       />
     );
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'buyurtma_tushdi':
+        return theme.palette.primary.main;
+      case 'oshxona_vaqt_belgiladi':
+        return theme.palette.info.main;
+      case 'kuryer_oldi':
+        return theme.palette.secondary.main;
+      case 'kuryer_yolda':
+        return theme.palette.warning.main;
+      case 'buyurtma_topshirildi':
+        return theme.palette.success.main;
+      default:
+        return theme.palette.grey[500];
+    }
   };
 
   const formatTime = (kitchenTime) => {
@@ -172,15 +181,14 @@ const ActiveOrdersDashboard = () => {
 
   const filteredOrders = orders.filter(order =>
     order.id.toString().includes(searchQuery) ||
-    order.user?.toLowerCase().includes(searchQuery.toLowerCase())
+    (order.user && order.user.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const statusGroups = {
     new: filteredOrders.filter(o => ['buyurtma_tushdi', 'oshxona_vaqt_belgiladi'].includes(o.status)),
-    accepted: filteredOrders.filter(o => o.status === 'qabul_qilindi'),
-    inDelivery: filteredOrders.filter(o => o.status === 'yetkazilmoqda'),
-    completed: filteredOrders.filter(o => o.status === 'yetkazib_berildi'),
-    all: filteredOrders
+    accepted: filteredOrders.filter(o => o.status === 'kuryer_oldi'),
+    inDelivery: filteredOrders.filter(o => o.status === 'kuryer_yolda'),
+    completed: filteredOrders.filter(o => o.status === 'buyurtma_topshirildi')
   };
 
   if (loading && orders.length === 0) {
@@ -237,7 +245,7 @@ const ActiveOrdersDashboard = () => {
         {/* Summary Cards */}
         <Grid container spacing={isMobile ? 2 : 3} mb={4}>
           {[
-            { title: 'Jami Buyurtmalar', value: orders.length, color: 'text.primary' },
+            { title: 'Jami Buyurtmalar', value: filteredOrders.length, color: 'text.primary' },
             { title: 'Yangi', value: statusGroups.new.length, color: 'primary.main' },
             { title: 'Qabul qilingan', value: statusGroups.accepted.length, color: 'secondary.main' },
             { title: 'Yetkazilmoqda', value: statusGroups.inDelivery.length, color: 'warning.main' },
@@ -261,42 +269,21 @@ const ActiveOrdersDashboard = () => {
           ))}
         </Grid>
 
-        {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
-          variant={isMobile ? 'scrollable' : 'fullWidth'}
-          scrollButtons="auto"
-          sx={{ mb: 3, bgcolor: 'white', borderRadius: 2 }}
-        >
-          <Tab label={`Yangi (${statusGroups.new.length})`} />
-          <Tab label={`Qabul qilingan (${statusGroups.accepted.length})`} />
-          <Tab label={`Yetkazilmoqda (${statusGroups.inDelivery.length})`} />
-          <Tab label={`Bajarilgan (${statusGroups.completed.length})`} />
-          <Tab label={`Barchasi (${statusGroups.all.length})`} />
-        </Tabs>
-
         {/* Orders List */}
         <Box>
-          {statusGroups[['new', 'accepted', 'inDelivery', 'completed', 'all'][activeTab]].length === 0 ? (
+          {filteredOrders.length === 0 ? (
             <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3 }}>
               <Typography variant="body1" color="text.secondary">
-                Ushbu bo‘limda faol buyurtmalar mavjud emas
+                Faol buyurtmalar mavjud emas
               </Typography>
             </Paper>
           ) : (
             <Grid container spacing={isMobile ? 2 : 3}>
-              {statusGroups[['new', 'accepted', 'inDelivery', 'completed', 'all'][activeTab]].map(order => (
+              {filteredOrders.map(order => (
                 <Grid item xs={12} key={order.id}>
                   <Card
                     sx={{
-                      borderLeft: `4px solid ${
-                        order.status === 'buyurtma_tushdi' ? theme.palette.primary.main :
-                        order.status === 'oshxona_vaqt_belgiladi' ? theme.palette.info.main :
-                        order.status === 'qabul_qilindi' ? theme.palette.secondary.main :
-                        order.status === 'yetkazilmoqda' ? theme.palette.warning.main :
-                        theme.palette.success.main
-                      }`
+                      borderLeft: `4px solid ${getStatusColor(order.status)}`
                     }}
                   >
                     <CardContent sx={{ p: isMobile ? 2 : 3 }}>
@@ -314,7 +301,7 @@ const ActiveOrdersDashboard = () => {
                           Restoran: {order.kitchen?.name || 'Mavjud emas'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Mijoz: {order.user}
+                          Mijoz: {order.user || 'Noma’lum'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Oshxona vaqti: {formatTime(order.kitchen_time)}
@@ -331,16 +318,16 @@ const ActiveOrdersDashboard = () => {
                               <Stack spacing={2}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Phone fontSize="small" color="action" />
-                                  <Typography variant="body2">{order.contact_number}</Typography>
+                                  <Typography variant="body2">{order.contact_number || 'Noma’lum'}</Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <LocationOn fontSize="small" color="action" />
-                                  <Typography variant="body2">{order.shipping_address}</Typography>
+                                  <Typography variant="body2">{order.shipping_address || 'Noma’lum'}</Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Payment fontSize="small" color="action" />
                                   <Typography variant="body2">
-                                    To‘lov: {order.payment === 'naqd' ? 'Naqd' : 'Karta'}
+                                    To‘lov: {order.payment === 'naqd' ? 'Naqd' : order.payment === 'karta' ? 'Karta' : 'Noma’lum'}
                                   </Typography>
                                 </Stack>
                                 {order.notes && (
@@ -353,29 +340,35 @@ const ActiveOrdersDashboard = () => {
                             </Grid>
                             <Grid item xs={12} md={6}>
                               <Typography variant="subtitle1" fontWeight="bold" mb={2}>
-                                Mahsulotlar ({order.items.length})
+                                Mahsulotlar ({order.items?.length || 0})
                               </Typography>
                               <List dense>
-                                {order.items.map((item, index) => (
-                                  <ListItem key={index} sx={{ py: 1 }}>
-                                    <ListItemAvatar>
-                                      <Avatar
-                                        variant="rounded"
-                                        src={item.product?.photo ? `${BASE_URL}${item.product.photo}` : undefined}
-                                        sx={{ bgcolor: 'grey.200', width: 40, height: 40 }}
-                                      >
-                                        <Restaurant fontSize="small" />
-                                      </Avatar>
-                                    </ListItemAvatar>
-                                    <ListItemText
-                                      primary={item.product?.title || 'Noma’lum Mahsulot'}
-                                      secondary={`${item.quantity} × ${item.price} so‘m`}
-                                    />
-                                    <Typography variant="body2" fontWeight="bold">
-                                      {(item.quantity * parseFloat(item.price)).toLocaleString('uz-UZ')} so‘m
-                                    </Typography>
-                                  </ListItem>
-                                ))}
+                                {order.items && order.items.length > 0 ? (
+                                  order.items.map((item, index) => (
+                                    <ListItem key={index} sx={{ py: 1 }}>
+                                      <ListItemAvatar>
+                                        <Avatar
+                                          variant="rounded"
+                                          src={item.product?.photo ? `${BASE_URL}${item.product.photo}` : undefined}
+                                          sx={{ bgcolor: 'grey.200', width: 40, height: 40 }}
+                                        >
+                                          <Restaurant fontSize="small" />
+                                        </Avatar>
+                                      </ListItemAvatar>
+                                      <ListItemText
+                                        primary={item.product?.title || 'Noma’lum Mahsulot'}
+                                        secondary={`${item.quantity} × ${item.price} so‘m`}
+                                      />
+                                      <Typography variant="body2" fontWeight="bold">
+                                        {(item.quantity * parseFloat(item.price || 0)).toLocaleString('uz-UZ')} so‘m
+                                      </Typography>
+                                    </ListItem>
+                                  ))
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary">
+                                    Mahsulotlar mavjud emas
+                                  </Typography>
+                                )}
                               </List>
                             </Grid>
                           </Grid>
