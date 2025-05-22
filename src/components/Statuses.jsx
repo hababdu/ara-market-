@@ -92,13 +92,13 @@ const ActiveOrdersDashboard = () => {
   const [lastFetch, setLastFetch] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const token = localStorage.getItem('authToken');
 
   const fetchOrders = async () => {
     setLoading(true);
     setError('');
     setSuccess('');
 
-    const token = localStorage.getItem('authToken');
     if (!token) {
       setError('Tizimga kirish kerak');
       localStorage.setItem('authError', 'Tizimga kirish kerak. Iltimos, login qiling.');
