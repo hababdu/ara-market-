@@ -193,6 +193,10 @@ const ProductDetails = () => {
         quantity: qty,
         photo: product.photo,
         user_id: userData.id,
+        kitchen_location: {
+          latitude: product.kitchen?.latitude,
+          longitude: product.kitchen?.longitude,
+        },
       });
       setCartItemId(cartItemId);
     }

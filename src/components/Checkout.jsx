@@ -189,10 +189,46 @@ const Checkout = () => {
     loadData();
   }, [navigate, token, parsedData]);
 
-  const calculateTotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0),
-    [cartItems]
-  );
+  const calculateTotal = useMemo(() => {
+    if (!cartItems || !Array.isArray(cartItems)) return 0;
+    return cartItems.reduce((sum, item) => {
+      const price = Number(item?.price) || 0;
+      const quantity = Number(item?.quantity) || 0;
+      return sum + price * quantity;
+    }, 0);
+  }, [cartItems]);
+
+  const calculateDistanceAndCourierFee = useCallback(() => {
+    if (!deliveryInfo.latitude || !deliveryInfo.longitude || !cartItems[0]?.kitchen_location) {
+      return { distance: null, courierFee: null };
+    }
+
+    const userLat = deliveryInfo.latitude;
+    const userLon = deliveryInfo.longitude;
+    const kitchenLat = cartItems[0].kitchen_location.latitude;
+    const kitchenLon = cartItems[0].kitchen_location.longitude;
+
+    // Haversine formula to calculate distance
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = ((kitchenLat - userLat) * Math.PI) / 180;
+    const dLon = ((kitchenLon - userLon) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((userLat * Math.PI) / 180) * Math.cos((kitchenLat * Math.PI) / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in kilometers
+
+    // Courier fee: 2,000 so'm per kilometer
+    const courierFee = distance * 2000;
+
+    return {
+      distance: distance.toFixed(2), // Round to 2 decimal places
+      courierFee: Math.round(courierFee), // Round to nearest integer
+    };
+  }, [deliveryInfo.latitude, deliveryInfo.longitude, cartItems]);
+
+  const { distance, courierFee } = calculateDistanceAndCourierFee();
 
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -301,6 +337,7 @@ const Checkout = () => {
     try {
       const totalAmount = calculateTotal;
       const kitchenId = cartItems[0]?.kitchen_id;
+      const { courierFee } = calculateDistanceAndCourierFee();
 
       if (!kitchenId) {
         setError("Oshxona ma'lumotlari topilmadi.");
@@ -322,8 +359,8 @@ const Checkout = () => {
         payment: "naqd",
         kitchen_id: kitchenId,
         kitchen_salary: totalAmount.toFixed(2),
-        courier_salary: "0.00",
-        full_salary: totalAmount.toFixed(2),
+        courier_salary: courierFee ? courierFee.toFixed(2) : "0.00",
+        full_salary: (totalAmount + (courierFee || 0)).toFixed(2),
         latitude: deliveryInfo.latitude,
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
@@ -357,7 +394,7 @@ const Checkout = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, token]);
+  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, token, calculateDistanceAndCourierFee]);
 
   const handleBack = useCallback(() => {
     setShowBackDialog(true);
@@ -412,6 +449,8 @@ const Checkout = () => {
       </Container>
     );
   }
+
+  const totalWithCourier = calculateTotal + (courierFee || 0);
 
   return (
     <ThemeProvider theme={theme}>
@@ -684,7 +723,7 @@ const Checkout = () => {
         >
           <Box sx={{ p: 0.75, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="caption" fontWeight="bold">
-              Jami: {calculateTotal.toLocaleString()} so'm
+              Jami: {totalWithCourier ? totalWithCourier.toLocaleString() : '0'} so'm
             </Typography>
             <IconButton onClick={() => setSummaryExpanded(!summaryExpanded)} size="small">
               {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
@@ -716,7 +755,7 @@ const Checkout = () => {
                   </ListItem>
                 ))}
               </List>
-              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5 }}>
+              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                 <Chip
                   icon={<PaymentIcon />}
                   label="Naqd"
@@ -731,6 +770,24 @@ const Checkout = () => {
                     size="small"
                     color="success"
                     variant="outlined"
+                  />
+                )}
+                {distance && (
+                  <Chip
+                    icon={<LocationIcon />}
+                    label={`${distance} km`}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                  />
+                )}
+                {courierFee && (
+                  <Chip
+                    icon={<CashIcon />}
+                    label={`${courierFee.toLocaleString()} so'm (kuriyer)`}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
                   />
                 )}
               </Box>
@@ -771,17 +828,23 @@ const Checkout = () => {
               <Box sx={{ mt: 1.5, p: 1, bgcolor: 'background.paper', borderRadius: 2 }}>
                 <Box display="flex" justifyContent="space-between" mb={0.25}>
                   <Typography variant="caption">Mahsulotlar:</Typography>
-                  <Typography variant="caption">{cartItems.reduce((sum, i) => sum + (i.quantity || 0), 0)} ta</Typography>
+                  <Typography variant="caption">{cartItems.reduce((sum, i) => sum + (Number(i?.quantity) || 0), 0)} ta</Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between" mb={0.25}>
                   <Typography variant="caption">Yetkazib berish:</Typography>
-                  <Typography variant="caption">0 so'm</Typography>
+                  <Typography variant="caption">{courierFee ? `${courierFee.toLocaleString()} so'm` : "0 so'm"}</Typography>
                 </Box>
+                {distance && (
+                  <Box display="flex" justifyContent="space-between" mb={0.25}>
+                    <Typography variant="caption">Masofa:</Typography>
+                    <Typography variant="caption">{distance} km</Typography>
+                  </Box>
+                )}
                 <Divider sx={{ my: 0.5 }} />
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="caption" fontWeight="bold">Jami:</Typography>
                   <Typography variant="caption" fontWeight="bold" color="primary">
-                    {calculateTotal.toLocaleString()} so'm
+                    {totalWithCourier ? totalWithCourier.toLocaleString() : '0'} so'm
                   </Typography>
                 </Box>
               </Box>

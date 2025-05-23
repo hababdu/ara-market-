@@ -10,6 +10,7 @@ import Register from './components/Register.jsx';
 import Orders from './components/Orders.jsx';
 import Promotions from './components/Promotions.jsx';
 import Status from './components/Statuses.jsx';
+import Login from './components/Login.jsx';
 import './index.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/register" element={<Register />} />

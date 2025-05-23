@@ -206,7 +206,7 @@ const Register = () => {
       );
 
       const { access: authToken, refresh: refreshToken } = loginResponse.data;
-      
+
       // Only save tokens, not user data
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
@@ -400,10 +400,25 @@ const Register = () => {
                   >
                     {isLoading ? "Yuklanmoqda..." : "Ro'yxatdan o'tish"}
                   </Button>
+                  <Button
+                    type="submit"
+
+                    variant="contained"
+                    color="primary"
+                    sx={{ mt: 3, mb: 2 }}
+                    disabled={isLoading}
+                    fullWidth
+                    onClick={() => navigate('/login')}
+                  >
+                    Kirish
+                  </Button>
                 </Box>
               </CardContent>
+
             </Card>
+
           </Fade>
+
           <Snackbar
             open={!!error || !!success}
             autoHideDuration={6000}
