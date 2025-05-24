@@ -364,8 +364,10 @@ const Checkout = () => {
         latitude: deliveryInfo.latitude,
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
+        full_time: distance, // Adding the distance between kitchen and customer
+         
       };
-
+console.log('Order Data:', orderData);
       const response = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/user/create-order/',
         orderData,

@@ -86,6 +86,10 @@ const Layout = () => {
                 <OrdersIcon className="mr-1" />
                 <span>Buyurtmalar</span>
               </button>
+              <button onClick={() => handleNavigate('/status')} className="text-white hover:text-blue-200 flex items-center">
+                <OrdersIcon className="mr-1" />
+                <span>Statuslar</span>
+              </button>
               <button onClick={() => handleNavigate('/promotions')} className="text-white hover:text-blue-200 flex items-center">
                 <PromoIcon className="mr-1" />
                 <span>Aksiyalar</span>
