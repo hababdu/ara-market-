@@ -24,7 +24,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
-// Zamonaviy MUI tema
+// Register.jsx dan olingan tema
 const theme = createTheme({
   palette: {
     primary: { main: '#1976d2', contrastText: '#fff' },
@@ -84,26 +84,22 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Formadagi o‘zgarishlarni boshqarish
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Parol ko‘rinishini almashtirish
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
 
-  // Formani yuborish
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setIsLoading(true);
 
-    // Validatsiya
-    if (!formData.username) {
+    if (!formData.username.trim()) {
       setError('Foydalanuvchi ismini kiriting.');
       setIsLoading(false);
       return;
@@ -115,25 +111,24 @@ const Login = () => {
     }
 
     try {
-      // Tokenlarni olish
       const response = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/token/',
         {
-          username: formData.username,
+          username: formData.username.trim(),
           password: formData.password,
-        }
+        },
+        { headers: { 'Content-Type': 'application/json' } }
       );
 
       const { access: authToken, refresh: refreshToken } = response.data;
 
-      // Tokenlarni saqlash
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
 
       setSuccess('Tizimga kirish muvaffaqiyatli! Profil sahifasiga o‘tilmoqda...');
       setTimeout(() => navigate('/profile'), 2000);
     } catch (err) {
-      console.log('Login Error:', err.response?.data);
+      console.error('Login Error:', err.response?.data);
       let errorMessage = 'Tizimga kirishda xatolik yuz berdi.';
       if (err.response) {
         if (err.response.status === 401) {
@@ -143,6 +138,8 @@ const Login = () => {
         } else if (err.response.status === 500) {
           errorMessage = 'Server xatosi. Iltimos, keyinroq urinib ko‘ring.';
         }
+      } else if (err.request) {
+        errorMessage = 'Tarmoq xatosi. Internet aloqangizni tekshiring.';
       }
       setError(errorMessage);
     } finally {
@@ -150,7 +147,6 @@ const Login = () => {
     }
   };
 
-  // Snackbar yopish
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') return;
     setError('');
@@ -189,6 +185,7 @@ const Login = () => {
                     onChange={handleChange}
                     margin="normal"
                     required
+                    autoComplete="username"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -206,6 +203,7 @@ const Login = () => {
                     onChange={handleChange}
                     margin="normal"
                     required
+                    autoComplete="current-password"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -225,24 +223,24 @@ const Login = () => {
                       ),
                     }}
                   />
-                  {isLoading && <LinearProgress sx={{ mt: 2, mb: 2 }} />}
+                  {isLoading && <LinearProgress sx={{ mt: 2, mb: 2, borderRadius: 4 }} />}
                   <Button
                     type="submit"
                     fullWidth
                     variant="contained"
                     color="primary"
-                    sx={{ mt: 3, mb: 2 }}
+                    sx={{ mt: 3, mb: 2, py: 1.5 }}
                     disabled={isLoading}
                   >
                     {isLoading ? 'Yuklanmoqda...' : 'Kirish'}
                   </Button>
-                  {/* Ro‘yxatdan o‘tish uchun navigatsiya tugmasi */}
                   <Button
                     fullWidth
                     variant="outlined"
                     color="secondary"
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 2, py: 1.5 }}
                     onClick={() => navigate('/register')}
+                    disabled={isLoading}
                   >
                     Ro‘yxatdan o‘tish
                   </Button>
@@ -259,7 +257,9 @@ const Login = () => {
             <MuiAlert
               onClose={handleClose}
               severity={error ? 'error' : 'success'}
-              sx={{ width: '100%' }}
+              elevation={6}
+              variant="filled"
+              sx={{ borderRadius: 8 }}
             >
               {error || success}
             </MuiAlert>

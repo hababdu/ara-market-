@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
@@ -23,6 +23,16 @@ import {
   LocalOffer as OfferIcon,
 } from '@mui/icons-material';
 
+// Mahsulotlarni tasodifiy tartiblash funksiyasi
+const shuffleArray = (array) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 const ProductsList = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -38,7 +48,7 @@ const ProductsList = () => {
     features: false,
   });
 
-  // Filter states
+  // Filtrlash holatlari
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedKitchens, setSelectedKitchens] = useState([]);
@@ -46,31 +56,26 @@ const ProductsList = () => {
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
 
-  const axiosInstance = axios.create({
-    baseURL: API_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axiosInstance.get('');
-      const productsData = Array.isArray(response.data) ? response.data : [];
-      setProducts(productsData);
-      setFilteredProducts(productsData);
+      const response = await axios.get(API_URL);
+      let productsData = Array.isArray(response.data) ? response.data : [];
       
-      // Initialize filters with available options
+      // Mahsulotlarni tasodifiy tartibda joylashtirish
+      productsData = shuffleArray(productsData);
+      
+      setProducts(productsData);
+      
+      // Filtrlarni boshlang'ich holatga keltirish
       if (productsData.length > 0) {
         const categories = [...new Set(productsData.map(p => p.category?.name).filter(Boolean))];
-        const newLocal = [...new Set(productsData.map(p => p.kitchen?.name).filter(Boolean))];
-        const kitchens = newLocal;
+        const kitchens = [...new Set(productsData.map(p => p.kitchen?.name).filter(Boolean))];
         setSelectedCategories(categories);
         setSelectedKitchens(kitchens);
         
-        // Calculate price range
+        // Narx oralig'ini hisoblash
         const prices = productsData.map(p => parseFloat(p.price));
         setPriceRange([Math.min(...prices), Math.max(...prices)]);
       }
@@ -78,7 +83,6 @@ const ProductsList = () => {
       const errorMessage = err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
       setError(errorMessage);
       setProducts([]);
-      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }
@@ -88,14 +92,11 @@ const ProductsList = () => {
     fetchProducts();
   }, []);
 
+  // Filtrlarni qo'llash
   useEffect(() => {
-    applyFilters();
-  }, [search, priceRange, selectedCategories, selectedKitchens, selectedFeatures, products]);
-
-  const applyFilters = () => {
     let result = [...products];
     
-    // Search filter
+    // Qidiruv filtri
     if (search) {
       result = result.filter(product => 
         product.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -103,40 +104,41 @@ const ProductsList = () => {
       );
     }
     
-    // Price range filter
+    // Narx oralig'i filtri
     result = result.filter(product => {
       const price = parseFloat(product.price);
       return price >= priceRange[0] && price <= priceRange[1];
     });
     
-    // Category filter
+    // Kategoriya filtri
     if (selectedCategories.length > 0) {
       result = result.filter(product => 
         selectedCategories.includes(product.category?.name)
       );
     }
     
-    // Kitchen filter
+    // Oshxona filtri
     if (selectedKitchens.length > 0) {
       result = result.filter(product => 
         selectedKitchens.includes(product.kitchen?.name)
       );
     }
     
-    // Features filter (example features)
-    if (selectedFeatures.includes('discount') && selectedFeatures.length === 1) {
+    // Xususiyatlar filtri
+    if (selectedFeatures.includes('discount')) {
       result = result.filter(product => parseFloat(product.discount) > 0);
     }
-    if (selectedFeatures.includes('popular') && selectedFeatures.length === 1) {
+    if (selectedFeatures.includes('popular')) {
       result = result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }
-    if (selectedFeatures.includes('new') && selectedFeatures.length === 1) {
+    if (selectedFeatures.includes('new')) {
       result = result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
     
     setFilteredProducts(result);
-  };
+  }, [search, priceRange, selectedCategories, selectedKitchens, selectedFeatures, products]);
 
+  // Filtr bo'limlarini yopish/ochish
   const toggleFilterSection = (section) => {
     setExpandedFilters(prev => ({
       ...prev,
@@ -144,6 +146,7 @@ const ProductsList = () => {
     }));
   };
 
+  // Kategoriyani tanlash/olib tashlash
   const toggleCategory = (category) => {
     setSelectedCategories(prev =>
       prev.includes(category)
@@ -152,6 +155,7 @@ const ProductsList = () => {
     );
   };
 
+  // Oshxonani tanlash/olib tashlash
   const toggleKitchen = (kitchen) => {
     setSelectedKitchens(prev =>
       prev.includes(kitchen)
@@ -160,14 +164,16 @@ const ProductsList = () => {
     );
   };
 
+  // Xususiyatni tanlash/olib tashlash
   const toggleFeature = (feature) => {
     setSelectedFeatures(prev =>
       prev.includes(feature)
         ? prev.filter(f => f !== feature)
-        : [feature] // Only allow one feature at a time for simplicity
+        : [feature] // Bir vaqtning o'zida faqat bitta xususiyatni tanlash
     );
   };
 
+  // Filtrlarni tozalash
   const resetFilters = () => {
     setSearch('');
     setPriceRange([0, 100000]);
@@ -178,6 +184,7 @@ const ProductsList = () => {
     setSelectedFeatures([]);
   };
 
+  // Baholarni ko'rsatish
   const renderRating = (rating) => {
     const stars = [];
     const maxStars = 5;
@@ -201,8 +208,9 @@ const ProductsList = () => {
     );
   };
 
-  const uniqueCategories = [...new Set(products.map(p => p.category?.name).filter(Boolean))];
-  const uniqueKitchens = [...new Set(products.map(p => p.kitchen?.name).filter(Boolean))];
+  // Nozik hisoblashlar
+  const uniqueCategories = useMemo(() => [...new Set(products.map(p => p.category?.name).filter(Boolean))], [products]);
+  const uniqueKitchens = useMemo(() => [...new Set(products.map(p => p.kitchen?.name).filter(Boolean))], [products]);
   const features = [
     { id: 'discount', label: 'Chegirmalar', icon: <DiscountIcon className="w-4 h-4" /> },
     { id: 'popular', label: 'Mashhurlar', icon: <PopularIcon className="w-4 h-4" /> },
@@ -239,7 +247,7 @@ const ProductsList = () => {
 
   return (
     <div className="container mx-auto py-4 px-2 sm:px-4">
-      {/* Mobile Header with Search and Filter */}
+      {/* Mobil qurilmalar uchun sarlavha */}
       <div className="sm:hidden mb-4">
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-xl font-bold text-blue-600 flex items-center">
@@ -262,6 +270,7 @@ const ProductsList = () => {
           </div>
         </div>
 
+        {/* Mobil qidiruv */}
         {mobileSearchOpen && (
           <div className="relative mb-2">
             <input
@@ -275,6 +284,7 @@ const ProductsList = () => {
           </div>
         )}
 
+        {/* Mobil filtrlash */}
         {mobileFilterOpen && (
           <div className="bg-white p-3 rounded-lg shadow-md mb-3">
             <div className="flex justify-between items-center mb-2">
@@ -291,7 +301,7 @@ const ProductsList = () => {
               </button>
             </div>
 
-            {/* Price Filter */}
+            {/* Narx filtri */}
             <div className="mb-3 border-b pb-2">
               <button 
                 className="flex justify-between items-center w-full"
@@ -332,7 +342,7 @@ const ProductsList = () => {
               )}
             </div>
 
-            {/* Category Filter */}
+            {/* Kategoriya filtri */}
             <div className="mb-3 border-b pb-2">
               <button 
                 className="flex justify-between items-center w-full"
@@ -362,7 +372,7 @@ const ProductsList = () => {
               )}
             </div>
 
-            {/* Kitchen Filter */}
+            {/* Oshxona filtri */}
             <div className="mb-3 border-b pb-2">
               <button 
                 className="flex justify-between items-center w-full"
@@ -392,7 +402,7 @@ const ProductsList = () => {
               )}
             </div>
 
-            {/* Features Filter */}
+            {/* Xususiyatlar filtri */}
             <div className="mb-2">
               <button 
                 className="flex justify-between items-center w-full"
@@ -424,7 +434,7 @@ const ProductsList = () => {
         )}
       </div>
 
-      {/* Desktop Header */}
+      {/* Desktop sarlavha */}
       <div className="hidden sm:flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-blue-600 flex items-center">
           <BasketIcon className="mr-2" />
@@ -454,7 +464,7 @@ const ProductsList = () => {
         </div>
       </div>
 
-      {/* Desktop Filters */}
+      {/* Desktop filtrlari */}
       <div className="hidden sm:block bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex-1 min-w-[200px]">
@@ -581,14 +591,15 @@ const ProductsList = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        // Mobil holatda 2 ta, desktop holatda 4 ta mahsulot bir qatorda
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
             <Link
               to={`/products/${product.id}`}
               key={product.id}
               className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200 flex flex-col h-full group"
             >
-              {/* Product Image */}
+              {/* Mahsulot rasmi */}
               <div className="relative pt-[75%] overflow-hidden">
                 {product.photo ? (
                   <img
@@ -609,7 +620,7 @@ const ProductsList = () => {
                 )}
               </div>
 
-              {/* Product Info */}
+              {/* Mahsulot ma'lumotlari */}
               <div className="p-3 flex-grow flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-base truncate" title={product.title}>
@@ -624,7 +635,7 @@ const ProductsList = () => {
                   {product.description || 'Tavsif mavjud emas'}
                 </p>
 
-                {/* Tags */}
+                {/* Teglar */}
                 <div className="flex flex-wrap gap-1 mb-3">
                   {product.kitchen?.name && (
                     <span className="flex items-center text-xs bg-gray-100 px-2 py-1 rounded">
@@ -640,7 +651,7 @@ const ProductsList = () => {
                   )}
                 </div>
 
-                {/* Price and Rating */}
+                {/* Narx va baho */}
                 <div className="mt-auto">
                   <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center">
@@ -651,12 +662,7 @@ const ProductsList = () => {
                         {parseFloat(product.price).toLocaleString()} so'm
                       </span>
                     </div>
-                    {product.created_at && (
-                      <span className="text-gray-400 text-xs flex items-center">
-                        <TimerIcon className="w-3 h-3 mr-1" />
-                        {new Date(product.created_at).toLocaleDateString()}
-                      </span>
-                    )}
+                    
                   </div>
 
                   {parseFloat(product.discount) > 0 && (

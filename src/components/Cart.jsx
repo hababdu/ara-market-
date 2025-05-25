@@ -231,42 +231,7 @@ const Cart = () => {
               </div>
             </div>
 
-            {!showCouponInput ? (
-              <button
-                onClick={() => setShowCouponInput(true)}
-                className="w-full mb-4 flex items-center justify-center text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <DiscountIcon className="mr-2" />
-                Kupon kodini qo'llash
-              </button>
-            ) : (
-              <div className="mb-4">
-                <div className="flex">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Kupon kodi"
-                    className="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={applyCoupon}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Qo'llash
-                  </button>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowCouponInput(false);
-                    setCouponCode('');
-                  }}
-                  className="mt-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  Bekor qilish
-                </button>
-              </div>
-            )}
+
 
             <button
               onClick={() => navigate('/checkout', { state: { items: cart } })}

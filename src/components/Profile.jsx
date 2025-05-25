@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -21,48 +22,46 @@ import {
   Badge,
   Chip,
   useMediaQuery,
-  Fab
 } from '@mui/material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import {
   Person as PersonIcon,
   Home as HomeIcon,
   Phone as PhoneIcon,
-  LocationOn as LocationIcon,
-  Email as EmailIcon,
+  LocationOn as LocationOnIcon,
   Edit as EditIcon,
   ArrowBack as BackIcon,
   Logout as LogoutIcon,
   ShoppingCart as CartIcon,
   Favorite as FavoriteIcon,
-  History as HistoryIcon,
-  Notifications as NotificationIcon
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
 // Default avatar URL
 const defaultAvatar = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png';
 
+// Register.jsx dan olingan tema
 const theme = createTheme({
   palette: {
-    primary: { main: '#4f46e5', contrastText: '#fff' },
-    secondary: { main: '#f43f5e' },
-    background: { default: '#f8fafc' },
+    primary: { main: '#1976d2', contrastText: '#fff' },
+    secondary: { main: '#f50057' },
+    background: { default: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' },
   },
   typography: {
-    fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
-    h4: { fontWeight: 700, color: '#1e293b' },
-    h5: { fontWeight: 600, color: '#334155' },
-    body1: { color: '#475569' },
-    body2: { color: '#64748b' },
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, color: '#1976d2' },
+    h5: { fontWeight: 600, color: '#333' },
+    body1: { color: '#555' },
+    body2: { color: '#777' },
   },
   components: {
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: '12px',
-          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05)',
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+          backgroundColor: '#ffffff',
           overflow: 'visible',
         },
       },
@@ -74,6 +73,28 @@ const theme = createTheme({
           height: 96,
           border: '3px solid #fff',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: 'none',
+          fontSize: '1rem',
+          padding: '10px 20px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          transition: 'transform 0.2s ease-in-out',
+          '&:hover': { transform: 'scale(1.05)' },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: '8px',
+          fontWeight: 600,
+          padding: '4px 8px',
         },
       },
     },
@@ -94,6 +115,9 @@ const AvatarContainer = styled(Box)(({ theme }) => ({
   left: '50%',
   transform: 'translate(-50%, -50%)',
   zIndex: 1,
+  [theme.breakpoints.down('sm')]: {
+    transform: 'translate(-50%, -40%)',
+  },
 }));
 
 const ActionButton = styled(Button)(({ theme }) => ({
@@ -107,52 +131,57 @@ const Profile = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [notificationCount, setNotificationCount] = useState(3); // bu sizning logikaga ko'ra o'zgartiriladi
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Fetch user data on mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-
-        const token = localStorage.getItem('authToken'); // Tokenni to‘g‘ri olish
+        const token = localStorage.getItem('authToken');
         if (!token) {
           setError('Tizimga kirish talab qilinadi');
-          navigate('/register');
+          navigate('/login');
           return;
         }
 
         const response = await axios.get('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', {
-          headers: { Authorization: `Bearer ${token}` }, // Sintaksis xatosi tuzatildi
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (response.data?.length > 0) {
-          const profileData = response.data[0];
-          console.log('Profile data from API:', profileData); // Debugging uchun log
-          setUserData({
-            ...profileData,
-            avatar: profileData.avatar || defaultAvatar,
-            stats: {
-              orders: profileData.orders?.length || 0, // Backenddan orders uzunligi
-              favorites: 8, // Bu joyni API dan olish kerak bo‘lsa, qo‘shimcha endpoint qo‘shing
-              notifications: 3, // Bu joyni API dan olish kerak bo‘lsa, qo‘shimcha endpoint qo‘shing
-            },
-          });
-          localStorage.setItem('userData', JSON.stringify(profileData));
-        } else {
-          setError('Profil ma\'lumotlari topilmadi');
+        let profileData = response.data;
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          profileData = response.data[0];
+        } else if (!profileData.id) {
+          throw new Error('Profil ma\'lumotlari topilmadi');
         }
+
+        setUserData({
+          ...profileData,
+          avatar: profileData.avatar || defaultAvatar,
+          stats: {
+            orders: profileData.orders?.length || 0,
+            favorites: profileData.favorites?.length || 0,
+            notifications: profileData.notifications?.length || 0,
+          },
+        });
+        localStorage.setItem('userData', JSON.stringify(profileData));
       } catch (err) {
         console.error('Fetch user data error:', err.response ? err.response.data : err.message);
-        setError(err.response?.data?.message || 'Server xatosi yuz berdi');
+        let errorMessage = 'Profil ma\'lumotlarini yuklashda xato yuz berdi';
         if (err.response?.status === 401) {
+          errorMessage = 'Sessiya muddati tugagan. Iltimos, qayta kiring';
           localStorage.removeItem('authToken');
+          localStorage.removeItem('refreshToken');
           localStorage.removeItem('userData');
           navigate('/login');
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Profil ma\'lumotlari topilmadi';
+        } else if (err.response?.status === 500) {
+          errorMessage = 'Server xatosi. Keyinroq urinib ko\'ring';
         }
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -163,9 +192,10 @@ const Profile = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
-    setSnackbarOpen(true);
-    setTimeout(() => navigate('/register'), 1500); // Snackbar ko‘rsatilgandan so‘ng redirect
+    setSnackbar({ open: true, message: 'Tizimdan chiqildi!', severity: 'success' });
+    setTimeout(() => navigate('/login'), 1500);
   };
 
   const handleEditProfile = () => {
@@ -178,6 +208,11 @@ const Profile = () => {
 
   const handleNavigation = (path) => {
     navigate(path);
+  };
+
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar({ ...snackbar, open: false });
   };
 
   if (loading) {
@@ -193,7 +228,7 @@ const Profile = () => {
           }}
         >
           <Box textAlign="center">
-            <CircularProgress size={60} thickness={4} />
+            <CircularProgress size={60} thickness={4} color="primary" />
             <Typography variant="h6" mt={3} color="text.secondary">
               Profil yuklanmoqda...
             </Typography>
@@ -216,15 +251,22 @@ const Profile = () => {
           }}
         >
           <Container maxWidth="sm">
-            <Typography variant="h5" align="center" gutterBottom>
-              {error || "Profil ma'lumotlari topilmadi"}
+            <Typography variant="h5" align="center" gutterBottom color="error">
+              {error || 'Profil ma\'lumotlari topilmadi'}
             </Typography>
             <Box mt={4} display="flex" justifyContent="center" gap={2}>
-              <ActionButton variant="contained" color="primary" onClick={() => navigate('/register')}>
+              <ActionButton variant="contained" color="primary" onClick={() => navigate('/login')}>
                 Tizimga kirish
               </ActionButton>
-              <ActionButton variant="outlined" color="primary" onClick={() => navigate('/register')}>
-                Ro'yxatdan o'tish
+              <ActionButton variant="outlined" color="secondary" onClick={() => navigate('/register')}>
+                Ro‘yxatdan o‘tish
+              </ActionButton>
+              <ActionButton
+                variant="outlined"
+                color="primary"
+                onClick={() => window.location.reload()}
+              >
+                Qayta urinish
               </ActionButton>
             </Box>
           </Container>
@@ -236,10 +278,9 @@ const Profile = () => {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: '100vh', background: theme.palette.background.default, pb: 8 }}>
-        {/* Header */}
         <Box
           sx={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
             height: isMobile ? 120 : 160,
             position: 'relative',
           }}
@@ -252,14 +293,11 @@ const Profile = () => {
               left: 16,
               color: 'white',
               bgcolor: 'rgba(255,255,255,0.2)',
-              '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.3)',
-              },
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
             }}
           >
             <BackIcon />
           </IconButton>
-
           <Typography
             variant="h5"
             sx={{
@@ -276,7 +314,6 @@ const Profile = () => {
         </Box>
 
         <Container maxWidth="md">
-          {/* Avatar and basic info */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <ProfileCard>
               <AvatarContainer>
@@ -289,9 +326,7 @@ const Profile = () => {
                       sx={{
                         bgcolor: theme.palette.primary.main,
                         color: 'white',
-                        '&:hover': {
-                          bgcolor: theme.palette.primary.dark,
-                        },
+                        '&:hover': { bgcolor: theme.palette.primary.dark },
                       }}
                       onClick={handleEditProfile}
                     >
@@ -301,12 +336,8 @@ const Profile = () => {
                 >
                   <Avatar
                     src={userData.avatar}
-                    alt={userData.user?.username || 'Foydalanuvchi'}
-                    sx={{
-                      width: 96,
-                      height: 96,
-                      border: '3px solid white',
-                    }}
+                    alt={userData.user.username || 'Foydalanuvchi'}
+                    sx={{ width: 96, height: 96, border: '3px solid white' }}
                   />
                 </Badge>
               </AvatarContainer>
@@ -314,53 +345,12 @@ const Profile = () => {
               <CardContent sx={{ pt: 8, pb: 4 }}>
                 <Box textAlign="center" mb={3}>
                   <Typography variant="h5" fontWeight="bold">
-                    {userData.user?.username || 'Foydalanuvchi'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {userData.user?.email || 'email@example.com'}
+                    {userData.user.username || 'Foydalanuvchi'}
                   </Typography>
                 </Box>
 
-                {/* Stats */}
-                <Box display="flex" justifyContent="center" gap={2} mb={4}>
-                  <Chip
-                    icon={<CartIcon />}
-                    label={`${userData.stats?.orders || 0} buyurtma`}
-                    variant="outlined"
-                    onClick={() => handleNavigation('/orders')}
-                    clickable
-                  />
-                  <Chip
-                    icon={<FavoriteIcon />}
-                    label={`${userData.stats?.favorites || 0} sevimli`}
-                    variant="outlined"
-                    onClick={() => handleNavigation('/favorites')}
-                    clickable
-                  />
-                  <Chip
-                    icon={<NotificationIcon />}
-                    label={`${userData.stats?.notifications || 0} xabar`}
-                    variant="outlined"
-                    onClick={() => handleNavigation('/notifications')}
-                    clickable
-                  />
-                </Box>
-
-                {/* Profile details */}
+              
                 <List disablePadding>
-                  <ListItem disableGutters>
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      <EmailIcon color="primary" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Email"
-                      secondary={userData.user?.email || 'Mavjud emas'}
-                      secondaryTypographyProps={{ color: 'text.secondary' }}
-                    />
-                  </ListItem>
-
-                  <Divider variant="inset" component="li" />
-
                   {userData.phone_number && (
                     <>
                       <ListItem disableGutters>
@@ -396,7 +386,7 @@ const Profile = () => {
                   {userData.location && (
                     <ListItem disableGutters>
                       <ListItemIcon sx={{ minWidth: 40 }}>
-                        <LocationIcon color="primary" />
+                        <LocationOnIcon color="primary" />
                       </ListItemIcon>
                       <ListItemText
                         primary="Joylashuv"
@@ -407,7 +397,7 @@ const Profile = () => {
                   )}
                 </List>
 
-                <Box textAlign="center" mt={4}>
+                <Box textAlign="center" mt={4} display="flex" justifyContent="center" gap={2}>
                   <ActionButton
                     variant="contained"
                     color="secondary"
@@ -416,6 +406,14 @@ const Profile = () => {
                   >
                     Chiqish
                   </ActionButton>
+                  <ActionButton
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<EditIcon />}
+                    onClick={handleEditProfile}
+                  >
+                    Profilni tahrirlash
+                  </ActionButton>
                 </Box>
               </CardContent>
             </ProfileCard>
@@ -423,13 +421,18 @@ const Profile = () => {
         </Container>
 
         <Snackbar
-          open={snackbarOpen}
+          open={snackbar.open}
           autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
+          onClose={handleSnackbarClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <MuiAlert severity="success" variant="filled" onClose={() => setSnackbarOpen(false)}>
-            Tizimdan chiqildi!
+          <MuiAlert
+            severity={snackbar.severity}
+            variant="filled"
+            onClose={handleSnackbarClose}
+            sx={{ borderRadius: 8 }}
+          >
+            {snackbar.message}
           </MuiAlert>
         </Snackbar>
       </Box>

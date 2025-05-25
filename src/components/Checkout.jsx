@@ -52,60 +52,59 @@ import {
   Error as ErrorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  LocalShipping as DeliveryIcon,
 } from '@mui/icons-material';
 
-const steps = ['Savat', 'Yetkazish', 'Tasdiqlash'];
+const steps = ['Savat', 'Yetkazish', 'To\'lov'];
 
 const theme = createTheme({
   palette: {
     primary: { main: '#1976d2' },
     secondary: { main: '#dc004e' },
-    success: { main: '#2e7d32' },
-    warning: { main: '#ed6c02' },
-    error: { main: '#d32f2f' },
+    success: { main: '#4caf50' },
+    warning: { main: '#ff9800' },
+    error: { main: '#f44336' },
     background: { default: '#f5f5f5', paper: '#fff' },
   },
   typography: {
+    fontFamily: "'Roboto', 'Arial', sans-serif",
     subtitle1: { fontSize: '1rem', fontWeight: 600 },
     subtitle2: { fontSize: '0.875rem', fontWeight: 600 },
+    body1: { fontSize: '0.8125rem' },
     body2: { fontSize: '0.75rem' },
     caption: { fontSize: '0.6875rem' },
   },
   components: {
     MuiCard: {
       styleOverrides: {
-        root: { borderRadius: 8, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
+        root: { borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
       },
     },
     MuiButton: {
       styleOverrides: {
-        root: { borderRadius: 8, textTransform: 'none', minHeight: 40 },
-        sizeSmall: { fontSize: '0.75rem', padding: '8px 12px' },
+        root: { borderRadius: 8, textTransform: 'none', minHeight: 40, fontWeight: 500 },
+        sizeSmall: { fontSize: '0.75rem', padding: '8px 16px' },
+        contained: { boxShadow: 'none', '&:hover': { boxShadow: 'none' } },
       },
     },
     MuiTextField: {
       styleOverrides: {
-        root: { '& .MuiInputBase-root': { fontSize: '0.75rem', padding: '4px' } },
+        root: { '& .MuiInputBase-root': { fontSize: '0.8125rem' } },
       },
     },
     MuiStepLabel: {
       styleOverrides: {
-        label: { fontSize: '0.6875rem' },
-      },
-    },
-    MuiStepIcon: {
-      styleOverrides: {
-        root: { fontSize: '1rem' },
+        label: { fontSize: '0.75rem', fontWeight: 500 },
       },
     },
     MuiChip: {
       styleOverrides: {
-        root: { fontSize: '0.6875rem', height: 24 },
+        root: { fontSize: '0.6875rem', height: 24, borderRadius: 6 },
       },
     },
     MuiAlert: {
       styleOverrides: {
-        root: { fontSize: '0.75rem', padding: '8px' },
+        root: { fontSize: '0.75rem', padding: '8px 12px', borderRadius: 8 },
       },
     },
   },
@@ -135,6 +134,10 @@ const Checkout = () => {
     longitude: null,
     detected_at: null,
   });
+
+  // Minimum kuryer narxi va kilometr narxi
+  const MIN_DELIVERY_FEE = 10000;
+  const PER_KM_FEE = 1000;
 
   const user = localStorage.getItem('userData');
   const cart = localStorage.getItem('cart') || '[]';
@@ -200,7 +203,7 @@ const Checkout = () => {
 
   const calculateDistanceAndCourierFee = useCallback(() => {
     if (!deliveryInfo.latitude || !deliveryInfo.longitude || !cartItems[0]?.kitchen_location) {
-      return { distance: null, courierFee: null };
+      return { distance: null, courierFee: MIN_DELIVERY_FEE };
     }
 
     const userLat = deliveryInfo.latitude;
@@ -219,12 +222,12 @@ const Checkout = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c; // Distance in kilometers
 
-    // Courier fee: 2,000 so'm per kilometer
-    const courierFee = distance * 2000;
+    // Calculate courier fee: minimum 10,000 so'm + 1,000 so'm per km
+    const courierFee = MIN_DELIVERY_FEE + Math.round(distance * PER_KM_FEE);
 
     return {
-      distance: distance.toFixed(2), // Round to 2 decimal places
-      courierFee: Math.round(courierFee), // Round to nearest integer
+      distance: distance.toFixed(1), // Round to 1 decimal place
+      courierFee,
     };
   }, [deliveryInfo.latitude, deliveryInfo.longitude, cartItems]);
 
@@ -311,8 +314,8 @@ const Checkout = () => {
         setShowLocationDialog(true);
         return;
       }
-      if (!deliveryInfo.phone.match(/^\+\d{10,12}$/)) {
-        setError("Telefon + bilan boshlanib, 10-12 raqam bo'lishi kerak");
+      if (!deliveryInfo.phone.match(/^\+?\d{10,12}$/)) {
+        setError("Telefon 10-12 raqam bo'lishi kerak (+ bilan boshlanishi shart emas)");
         return;
       }
       setError(null);
@@ -359,15 +362,14 @@ const Checkout = () => {
         payment: "naqd",
         kitchen_id: kitchenId,
         kitchen_salary: totalAmount.toFixed(2),
-        courier_salary: courierFee ? courierFee.toFixed(2) : "0.00",
-        full_salary: (totalAmount + (courierFee || 0)).toFixed(2),
+        courier_salary: courierFee ? courierFee.toFixed(2) : MIN_DELIVERY_FEE.toFixed(2),
+        full_salary: (totalAmount + (courierFee || MIN_DELIVERY_FEE)).toFixed(2),
         latitude: deliveryInfo.latitude,
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
-        full_time: distance, // Adding the distance between kitchen and customer
-         
+        distance: distance,
       };
-console.log('Order Data:', orderData);
+
       const response = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/user/create-order/',
         orderData,
@@ -382,7 +384,7 @@ console.log('Order Data:', orderData);
       if (response.data && response.data.id) {
         localStorage.removeItem('cart');
         setSuccess(`Buyurtma qabul qilindi! Raqam: #${response.data.id}`);
-        setTimeout(() => navigate('/status'), 1500);
+        setTimeout(() => navigate('/orders'), 1500);
       } else {
         throw new Error("Buyurtma yaratish xatosi");
       }
@@ -396,7 +398,7 @@ console.log('Order Data:', orderData);
     } finally {
       setSubmitting(false);
     }
-  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, token, calculateDistanceAndCourierFee]);
+  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, token, calculateDistanceAndCourierFee, distance]);
 
   const handleBack = useCallback(() => {
     setShowBackDialog(true);
@@ -452,46 +454,46 @@ console.log('Order Data:', orderData);
     );
   }
 
-  const totalWithCourier = calculateTotal + (courierFee || 0);
+  const totalWithCourier = calculateTotal + (courierFee || MIN_DELIVERY_FEE);
 
   return (
     <ThemeProvider theme={theme}>
       <Container maxWidth="xs" sx={{ py: 1.5, pb: isMobile ? 14 : 1.5 }}>
         {/* Fixed Top Bar */}
-        <AppBar position="fixed" color="default" elevation={1}>
+        <AppBar position="fixed" color="default" elevation={1} sx={{ background: '#fff' }}>
           <Toolbar sx={{ minHeight: 48, px: 1 }}>
             <IconButton onClick={handleBack} edge="start" sx={{ mr: 1, p: 0.5 }}>
               <ArrowBackIcon fontSize="small" />
             </IconButton>
             <Typography variant="subtitle2" fontWeight="bold" noWrap>
-              Buyurtma
+              Buyurtma berish
             </Typography>
           </Toolbar>
         </AppBar>
         <Box sx={{ mt: isMobile ? 7 : 8 }} />
 
         {/* Stepper */}
-        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 2, '& .MuiStepLabel-label': { fontSize: '0.6875rem' } }}>
+        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 2 }}>
           {steps.map(label => (
             <Step key={label}>
-              <StepLabel sx={{ '& .MuiStepIcon-root': { fontSize: isMobile ? 18 : 20 } }}>{label}</StepLabel>
+              <StepLabel>{label}</StepLabel>
             </Step>
           ))}
         </Stepper>
 
         {/* Alerts */}
         {error && (
-          <Alert severity="error" sx={{ mb: 1.5, borderRadius: 2 }} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
         {locationError && (
-          <Alert severity="warning" sx={{ mb: 1.5, borderRadius: 2 }} onClose={() => setLocationError(null)}>
+          <Alert severity="warning" sx={{ mb: 1.5 }} onClose={() => setLocationError(null)}>
             {locationError}
           </Alert>
         )}
         {success && (
-          <Alert severity="success" sx={{ mb: 1.5, borderRadius: 2 }} onClose={() => setSuccess(null)}>
+          <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
@@ -500,7 +502,7 @@ console.log('Order Data:', orderData);
         <Grid container spacing={isMobile ? 1 : 1.5}>
           <Grid item xs={12}>
             {activeStep === 0 && (
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+              <Card>
                 <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
                   <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Savat</Typography>
                   <Divider sx={{ mb: 1.5 }} />
@@ -545,7 +547,7 @@ console.log('Order Data:', orderData);
                       variant="contained"
                       onClick={handleNextStep}
                       size="small"
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
                       Davom etish
                     </Button>
@@ -555,11 +557,13 @@ console.log('Order Data:', orderData);
             )}
 
             {activeStep === 1 && (
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+              <Card>
                 <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Yetkazish</Typography>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Yetkazish ma'lumotlari</Typography>
                   <Divider sx={{ mb: 1.5 }} />
-                  <Box sx={{ mb: 1.5, p: 1, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
+                  
+                  {/* Location Section */}
+                  <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f5f9ff', borderRadius: 2, border: '1px solid #e0e0e0' }}>
                     <Typography variant="caption" sx={{ mb: 0.5, display: 'flex', alignItems: 'center' }}>
                       <GpsFixedIcon color="primary" sx={{ mr: 0.5, fontSize: 16 }} /> Joylashuv
                     </Typography>
@@ -570,24 +574,35 @@ console.log('Order Data:', orderData);
                       disabled={locationLoading}
                       fullWidth
                       size="small"
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
-                      {deliveryInfo.latitude ? "Yangilash" : "Aniqlash"}
+                      {deliveryInfo.latitude ? "Joylashuvni yangilash" : "Joylashuvni aniqlash"}
                     </Button>
                     {deliveryInfo.latitude && (
-                      <Chip
-                        icon={<CheckCircleIcon />}
-                        label="Aniqlangan"
-                        color="success"
-                        size="small"
-                        variant="outlined"
-                        sx={{ mt: 0.5 }}
-                      />
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          icon={<CheckCircleIcon />}
+                          label="Joylashuv aniqlangan"
+                          color="success"
+                          size="small"
+                          variant="outlined"
+                        />
+                        {distance && (
+                          <Chip
+                            icon={<DeliveryIcon />}
+                            label={`Masofa: ${distance} km`}
+                            size="small"
+                            variant="outlined"
+                            sx={{ ml: 0.5 }}
+                          />
+                        )}
+                      </Box>
                     )}
                   </Box>
+
                   <TextField
                     fullWidth
-                    label="Telefon"
+                    label="Telefon raqam"
                     name="phone"
                     value={deliveryInfo.phone}
                     onChange={handleInputChange}
@@ -597,12 +612,12 @@ console.log('Order Data:', orderData);
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><PhoneIcon fontSize="small" /></InputAdornment>,
                     }}
-                    helperText="Masalan: +998901234567"
+                    helperText="Masalan: 901234567"
                     sx={{ mb: 1 }}
                   />
                   <TextField
                     fullWidth
-                    label="Manzil"
+                    label="To'liq manzil"
                     name="address"
                     value={deliveryInfo.address}
                     onChange={handleInputChange}
@@ -616,7 +631,7 @@ console.log('Order Data:', orderData);
                   />
                   <TextField
                     fullWidth
-                    label="Izoh"
+                    label="Qo'shimcha izoh (ixtiyoriy)"
                     name="notes"
                     value={deliveryInfo.notes}
                     onChange={handleInputChange}
@@ -633,7 +648,7 @@ console.log('Order Data:', orderData);
                       variant="outlined"
                       onClick={handlePrevStep}
                       size="small"
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
                       Ortga
                     </Button>
@@ -642,7 +657,7 @@ console.log('Order Data:', orderData);
                       onClick={handleNextStep}
                       disabled={!deliveryInfo.latitude || !deliveryInfo.longitude}
                       size="small"
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
                       Davom etish
                     </Button>
@@ -652,21 +667,25 @@ console.log('Order Data:', orderData);
             )}
 
             {activeStep === 2 && (
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+              <Card>
                 <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Tasdiqlash</Typography>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>To'lov usuli</Typography>
                   <Divider sx={{ mb: 1.5 }} />
-                  <Paper sx={{ p: 1, border: '1px solid', borderColor: 'primary.main', borderRadius: 2, mb: 1.5 }}>
+                  
+                  {/* Payment Method */}
+                  <Paper sx={{ p: 1, border: '1px solid #e0e0e0', borderRadius: 2, mb: 1.5 }}>
                     <Box display="flex" alignItems="center">
                       <CashIcon color="primary" sx={{ fontSize: 20, mr: 1 }} />
                       <Box>
-                        <Typography variant="caption">Naqd</Typography>
-                        <Typography variant="caption" color="text.secondary">Olganda to'laysiz</Typography>
+                        <Typography variant="caption" fontWeight="bold">Naqd pul</Typography>
+                        <Typography variant="caption" color="text.secondary">Yetkazib berilganda to'lov</Typography>
                       </Box>
                       <CheckCircleIcon color="primary" sx={{ ml: 'auto', fontSize: 18 }} />
                     </Box>
                   </Paper>
-                  <Typography variant="caption" fontWeight="bold">Yetkazish</Typography>
+
+                  {/* Delivery Info */}
+                  <Typography variant="caption" fontWeight="bold">Yetkazish ma'lumotlari</Typography>
                   <List dense sx={{ mb: 1.5 }}>
                     <ListItem sx={{ py: 0.25 }}>
                       <PhoneIcon fontSize="small" sx={{ mr: 0.5 }} />
@@ -683,12 +702,13 @@ console.log('Order Data:', orderData);
                       </ListItem>
                     )}
                   </List>
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
                     <Button
                       variant="outlined"
                       onClick={handlePrevStep}
                       size="small"
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
                       Ortga
                     </Button>
@@ -698,9 +718,9 @@ console.log('Order Data:', orderData);
                       disabled={submitting}
                       size="small"
                       startIcon={submitting && <CircularProgress size={14} />}
-                      sx={{ minHeight: 40, borderRadius: 2, fontSize: '0.75rem' }}
+                      sx={{ minHeight: 40, borderRadius: 2 }}
                     >
-                      {submitting ? "Jo'natilyapti" : "Tasdiqlash"}
+                      {submitting ? "Jo'natilyapti..." : "Buyurtma berish"}
                     </Button>
                   </Box>
                 </CardContent>
@@ -718,21 +738,24 @@ console.log('Order Data:', orderData);
             right: 0,
             borderTopLeftRadius: 12,
             borderTopRightRadius: 12,
-            boxShadow: '0 -2px 6px rgba(0,0,0,0.08)',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
             zIndex: 1000,
             display: isMobile ? 'block' : 'none',
           }}
         >
-          <Box sx={{ p: 0.75, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" fontWeight="bold">
-              Jami: {totalWithCourier ? totalWithCourier.toLocaleString() : '0'} so'm
-            </Typography>
+          <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper' }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Jami:</Typography>
+              <Typography variant="subtitle2" fontWeight="bold">
+                {totalWithCourier.toLocaleString()} so'm
+              </Typography>
+            </Box>
             <IconButton onClick={() => setSummaryExpanded(!summaryExpanded)} size="small">
               {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
             </IconButton>
           </Box>
           <Collapse in={summaryExpanded}>
-            <Box sx={{ p: 1, bgcolor: 'background.paper' }}>
+            <Box sx={{ p: 1.5, bgcolor: 'background.paper' }}>
               <List dense>
                 {cartItems.map((item, index) => (
                   <ListItem key={index} sx={{ py: 0.25 }}>
@@ -757,159 +780,77 @@ console.log('Order Data:', orderData);
                   </ListItem>
                 ))}
               </List>
-              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                <Chip
-                  icon={<PaymentIcon />}
-                  label="Naqd"
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                />
-                {deliveryInfo.latitude && (
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label="Joylashuv"
-                    size="small"
-                    color="success"
-                    variant="outlined"
-                  />
-                )}
-                {distance && (
-                  <Chip
-                    icon={<LocationIcon />}
-                    label={`${distance} km`}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                  />
-                )}
-                {courierFee && (
-                  <Chip
-                    icon={<CashIcon />}
-                    label={`${courierFee.toLocaleString()} so'm (kuriyer)`}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                  />
-                )}
-              </Box>
-            </Box>
-          </Collapse>
-        </Paper>
-
-        {/* Desktop Summary */}
-        <Box sx={{ display: isMobile ? 'none' : 'block', mt: 1.5 }}>
-          <Card sx={{ borderRadius: 2, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
-            <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-              <Typography variant="subtitle2" fontWeight="bold">Xulosa</Typography>
-              <Divider sx={{ mb: 1.5 }} />
-              <List dense>
-                {cartItems.map((item, index) => (
-                  <ListItem key={index} divider sx={{ py: 0.5 }}>
-                    <Badge badgeContent={item.quantity} color="primary" sx={{ mr: 1 }}>
-                      <Avatar
-                        src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
-                        variant="rounded"
-                        sx={{ width: 28, height: 28 }}
-                      >
-                        {!item.photo && <FastfoodIcon fontSize="small" />}
-                      </Avatar>
-                    </Badge>
-                    <ListItemText
-                      primary={item.title}
-                      secondary={`${(item.price || 0).toLocaleString()} so'm`}
-                      primaryTypographyProps={{ variant: 'caption' }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
-                    />
-                    <Typography variant="caption" fontWeight="bold">
-                      {(item.quantity * (item.price || 0)).toLocaleString()} so'm
-                    </Typography>
-                  </ListItem>
-                ))}
-              </List>
-              <Box sx={{ mt: 1.5, p: 1, bgcolor: 'background.paper', borderRadius: 2 }}>
-                <Box display="flex" justifyContent="space-between" mb={0.25}>
+              <Divider sx={{ my: 1 }} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Box display="flex" justifyContent="space-between">
                   <Typography variant="caption">Mahsulotlar:</Typography>
-                  <Typography variant="caption">{cartItems.reduce((sum, i) => sum + (Number(i?.quantity) || 0), 0)} ta</Typography>
+                  <Typography variant="caption">{calculateTotal.toLocaleString()} so'm</Typography>
                 </Box>
-                <Box display="flex" justifyContent="space-between" mb={0.25}>
+                <Box display="flex" justifyContent="space-between">
                   <Typography variant="caption">Yetkazib berish:</Typography>
-                  <Typography variant="caption">{courierFee ? `${courierFee.toLocaleString()} so'm` : "0 so'm"}</Typography>
+                  <Typography variant="caption">{courierFee.toLocaleString()} so'm</Typography>
                 </Box>
                 {distance && (
-                  <Box display="flex" justifyContent="space-between" mb={0.25}>
+                  <Box display="flex" justifyContent="space-between">
                     <Typography variant="caption">Masofa:</Typography>
                     <Typography variant="caption">{distance} km</Typography>
                   </Box>
                 )}
                 <Divider sx={{ my: 0.5 }} />
                 <Box display="flex" justifyContent="space-between">
-                  <Typography variant="caption" fontWeight="bold">Jami:</Typography>
+                  <Typography variant="caption" fontWeight="bold">Umumiy summa:</Typography>
                   <Typography variant="caption" fontWeight="bold" color="primary">
-                    {totalWithCourier ? totalWithCourier.toLocaleString() : '0'} so'm
+                    {totalWithCourier.toLocaleString()} so'm
                   </Typography>
                 </Box>
               </Box>
-              <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
-                <Chip icon={<PaymentIcon />} label="Naqd" variant="outlined" color="primary" size="small" />
-                {deliveryInfo.latitude && (
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label="Joylashuv"
-                    color="success"
-                    variant="outlined"
-                    size="small"
-                  />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+            </Box>
+          </Collapse>
+        </Paper>
 
+        
         {/* Dialogs */}
         <Dialog open={showLocationDialog} onClose={handleLocationDialogClose}>
           <DialogTitle sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center' }}>
-            <ErrorIcon color="error" sx={{ mr: 0.5, fontSize: 18 }} /> Joylashuv
+            <ErrorIcon color="error" sx={{ mr: 0.5, fontSize: 18 }} /> Joylashuv ruxsati
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ fontSize: '0.6875rem' }}>
-              Buyurtma uchun joylashuv kerak. Brauzer sozlamalarida ruxsat bering.
+            <DialogContentText sx={{ fontSize: '0.75rem' }}>
+              Buyurtma berish uchun joylashuv ma'lumotlari kerak. Iltimos, brauzer sozlamalarida joylashuv ruxsatini yoqing.
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleLocationDialogClose} size="small" sx={{ fontSize: '0.6875rem' }}>
+            <Button onClick={handleLocationDialogClose} size="small">
               Yopish
             </Button>
             <Button
               onClick={handleBrowserSettingsRedirect}
               variant="contained"
               size="small"
-              sx={{ fontSize: '0.6875rem' }}
             >
-              Sozlamalar
+              Sozlamalarga o'tish
             </Button>
           </DialogActions>
         </Dialog>
 
         <Dialog open={showBackDialog} onClose={handleBackCancel}>
-          <DialogTitle sx={{ fontSize: '0.875rem' }}>Ortga qaytish</DialogTitle>
+          <DialogTitle sx={{ fontSize: '0.875rem' }}>Buyurtmani bekor qilish</DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ fontSize: '0.6875rem' }}>
-              Buyurtmani tark etmoqchimisiz? Ma'lumotlar saqlanmaydi.
+            <DialogContentText sx={{ fontSize: '0.75rem' }}>
+              Rostan ham buyurtmani bekor qilmoqchimisiz? Barcha ma'lumotlar yo'qoladi.
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleBackCancel} size="small" sx={{ fontSize: '0.6875rem' }}>
-              Qolish
+            <Button onClick={handleBackCancel} size="small">
+              Bekor qilish
             </Button>
             <Button
               onClick={handleBackConfirm}
               variant="contained"
               size="small"
               color="error"
-              sx={{ fontSize: '0.6875rem' }}
             >
-              Tark etish
+              Tasdiqlash
             </Button>
           </DialogActions>
         </Dialog>

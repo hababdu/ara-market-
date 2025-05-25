@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -43,6 +44,7 @@ import {
   ExpandLess,
   Search,
   Cancel,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 
 const ACTIVE_ORDERS_API = 'https://hosilbek.pythonanywhere.com/api/user/active-orders/';
@@ -176,6 +178,7 @@ const ActiveOrdersDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(Array.isArray(response.data) ? response.data : []);
+      console.log('Fetched orders:', response.data);
       setLastFetch(new Date().toISOString());
     } catch (err) {
       let errorMessage = 'Buyurtmalarni olishda xato';
@@ -230,12 +233,7 @@ const ActiveOrdersDashboard = () => {
   }, []);
 
   const isReturnDisabled = (status) =>
-    [
-      'kuryer_oldi',
-      'kuryer_yolda',
-      'buyurtma_topshirildi',
-      'qaytarildi',
-    ].includes(status);
+    ['kuryer_oldi', 'kuryer_yolda', 'buyurtma_topshirildi', 'qaytarildi'].includes(status);
 
   const getStatusChip = (status) => {
     const config = statusMap[status] || {
@@ -376,190 +374,221 @@ const ActiveOrdersDashboard = () => {
           </Alert>
         )}
 
-        {/* Orders List */}
-        <Box>
-          {filteredOrders.length === 0 ? (
-            <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'white' }}>
-              <Typography variant="body2" color="text.secondary" mb={1.5}>
-                Faol buyurtma yo‘q
+          <Box>
+            {filteredOrders.length === 0 ? (
+              <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'white' }}>
+                <Typography variant="body2" color="text.secondary" mb={1.5}>
+            Faol buyurtma yo‘q
+                </Typography>
+                <Button
+            variant="contained"
+            size="small"
+            onClick={() => navigate('/')}
+            sx={{ minHeight: 40, borderRadius: 2 }}
+                >
+            Buyurtma berish
+                </Button>
+              </Paper>
+            ) : (
+              <Grid container spacing={isMobile ? 1.5 : 2}>
+                {filteredOrders.map((order) => (
+            <Grid item xs={12} key={order.id}>
+              <Card sx={{ borderLeft: `3px solid ${getStatusColor(order.status)}`, bgcolor: 'white' }}>
+                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+              <Typography variant="subtitle2" fontWeight="bold">
+                Buyurtma #{order.id}
               </Typography>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => navigate('/')}
-                sx={{ minHeight: 40, borderRadius: 2 }}
+              <Stack direction="row" spacing={1} alignItems="center">
+                {getStatusChip(order.status)}
+                <IconButton
+                  onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                  size="small"
+                >
+                  {expandedOrder === order.id ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                </IconButton>
+              </Stack>
+                  </Stack>
+                  <Stack spacing={1} mb={1.5}>
+              <Typography variant="body2" fontWeight="medium">
+                {getStatusMessage(order.status)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {getEstimatedDelivery(order.kitchen_time, order.created_at)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+              </Typography>
+              <Stepper
+                activeStep={getTimelineStep(order.status)}
+                alternativeLabel
+                sx={{ mt: 1.5 }}
               >
-                Buyurtma berish
-              </Button>
-            </Paper>
-          ) : (
-            <Grid container spacing={isMobile ? 1.5 : 2}>
-              {filteredOrders.map((order) => (
-                <Grid item xs={12} key={order.id}>
-                  <Card sx={{ borderLeft: `3px solid ${getStatusColor(order.status)}`, bgcolor: 'white' }}>
-                    <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Typography variant="subtitle2" fontWeight="bold">
-                          Buyurtma #{order.id}
-                        </Typography>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          {getStatusChip(order.status)}
-                          <IconButton
-                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                            size="small"
-                          >
-                            {expandedOrder === order.id ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                          </IconButton>
-                        </Stack>
-                      </Stack>
-                      <Stack spacing={1} mb={1.5}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {getStatusMessage(order.status)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {getEstimatedDelivery(order.kitchen_time, order.created_at)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
-                        </Typography>
-                        <Stepper
-                          activeStep={getTimelineStep(order.status)}
-                          alternativeLabel
-                          sx={{ mt: 1.5 }}
-                        >
-                          {[
-                            { label: 'Yangi', status: 'buyurtma_tushdi' },
-                            { label: 'Tayyor', status: 'oshxona_vaqt_belgiladi' },
-                            { label: 'Kuryer', status: 'kuryer_oldi' },
-                            { label: 'Yo‘lda', status: 'kuryer_yolda' },
-                            { label: 'Yetkazildi', status: 'buyurtma_topshirildi' },
-                          ].map((step, index) => (
-                            <Step key={index}>
-                              <StepLabel
-                                sx={{
-                                  '& .MuiStepLabel-label': {
-                                    color:
-                                      getTimelineStep(order.status) >= index
-                                        ? getStatusColor(step.status)
-                                        : 'text.secondary',
-                                    fontWeight: getTimelineStep(order.status) >= index ? 500 : 400,
-                                  },
-                                }}
-                              >
-                                {step.label}
-                              </StepLabel>
-                            </Step>
-                          ))}
-                        </Stepper>
-                        <Stack direction={isMobile ? 'column' : 'row'} spacing={1}>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<Cancel fontSize="small" />}
-                            onClick={() => returnOrder(order.id)}
-                            disabled={isReturnDisabled(order.status)}
-                            size="small"
-                            sx={{ minHeight: 40, borderRadius: 2 }}
-                          >
-                            Qaytarish
-                          </Button>
-                        </Stack>
-                      </Stack>
-                      <Collapse in={expandedOrder === order.id}>
-                        <Box sx={{ mt: 2 }}>
-                          <Divider sx={{ mb: 2 }} />
-                          <Grid container spacing={isMobile ? 1.5 : 2}>
-                            <Grid item xs={12} md={6}>
-                              <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
-                                Tafsilotlar
-                              </Typography>
-                              <Stack spacing={1}>
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Phone fontSize="small" color="action" />
-                                  <Typography variant="caption">
-                                    {order.contact_number || 'Noma’lum'}
-                                  </Typography>
-                                </Stack>
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <LocationOn fontSize="small" color="action" />
-                                  <Typography variant="caption">
-                                    {order.shipping_address || 'Noma’lum'}
-                                  </Typography>
-                                </Stack>
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Payment fontSize="small" color="action" />
-                                  <Typography variant="caption">
-                                    To‘lov:{' '}
-                                    {order.payment === 'naqd'
-                                      ? 'Naqd'
-                                      : order.payment === 'karta'
-                                      ? 'Karta'
-                                      : 'Noma’lum'}
-                                  </Typography>
-                                </Stack>
-                                {order.notes && (
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
-                                    <Typography variant="caption">
-                                      Izoh: {order.notes}
-                                    </Typography>
-                                  </Stack>
-                                )}
-                              </Stack>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                              <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
-                                Mahsulotlar ({order.items?.length || 0})
-                              </Typography>
-                              <List dense>
-                                {order.items && order.items.length > 0 ? (
-                                  order.items.map((item, index) => (
-                                    <ListItem key={index} sx={{ py: 0.5 }}>
-                                      <ListItemAvatar>
-                                        <Avatar
-                                          variant="rounded"
-                                          src={
-                                            item.product?.photo
-                                              ? `${BASE_URL}${item.product.photo}`
-                                              : undefined
-                                          }
-                                          sx={{ bgcolor: 'grey.200', width: 28, height: 28 }}
-                                        >
-                                          <Restaurant fontSize="small" />
-                                        </Avatar>
-                                      </ListItemAvatar>
-                                      <ListItemText
-                                        primary={item.product?.title || 'Noma’lum'}
-                                        secondary={`${item.quantity} × ${item.price || 0} so‘m`}
-                                        primaryTypographyProps={{ variant: 'caption' }}
-                                        secondaryTypographyProps={{ variant: 'caption' }}
-                                      />
-                                      <Typography variant="caption" fontWeight="bold">
-                                        {(item.quantity * parseFloat(item.price || 0)).toLocaleString(
-                                          'uz-UZ'
-                                        )}{' '}
-                                        so‘m
-                                      </Typography>
-                                    </ListItem>
-                                  ))
-                                ) : (
-                                  <Typography variant="caption" color="text.secondary">
-                                    Mahsulot yo‘q
-                                  </Typography>
-                                )}
-                              </List>
-                            </Grid>
-                          </Grid>
-                        </Box>
-                      </Collapse>
-                    </CardContent>
-                  </Card>
+                {[
+                  { label: 'Yangi', status: 'buyurtma_tushdi' },
+                  { label: 'Tayyor', status: 'oshxona_vaqt_belgiladi' },
+                  { label: 'Kuryer', status: 'kuryer_oldi' },
+                  { label: 'Yo‘lda', status: 'kuryer_yolda' },
+                  { label: 'Yetkazildi', status: 'buyurtma_topshirildi' },
+                ].map((step, index) => (
+                  <Step key={index}>
+                    <StepLabel
+                sx={{
+                  '& .MuiStepLabel-label': {
+                    color:
+                      getTimelineStep(order.status) >= index
+                  ? getStatusColor(step.status)
+                  : 'text.secondary',
+                    fontWeight: getTimelineStep(order.status) >= index ? 500 : 400,
+                  },
+                }}
+                    >
+                {step.label}
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+              <Stack direction={isMobile ? 'column' : 'row'} spacing={1}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Cancel fontSize="small" />}
+                  onClick={() => returnOrder(order.id)}
+                  disabled={isReturnDisabled(order.status)}
+                  size="small"
+                  sx={{ minHeight: 40, borderRadius: 2 }}
+                >
+                  Qaytarish
+                </Button>
+              </Stack>
+                  </Stack>
+                  <Collapse in={expandedOrder === order.id}>
+              <Box sx={{ mt: 2 }}>
+                <Divider sx={{ mb: 2 }} />
+                <Grid container spacing={isMobile ? 1.5 : 2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
+                Tafsilotlar
+                    </Typography>
+                    <Stack spacing={1}>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Phone fontSize="small" color="action" />
+                  <Typography variant="caption">
+                    {order.contact_number || 'Noma’lum'}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <LocationOn fontSize="small" color="action" />
+                  <Typography variant="caption">
+                    {order.shipping_address || 'Noma’lum'}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Payment fontSize="small" color="action" />
+                  <Typography variant="caption">
+                    To‘lov:{' '}
+                    {order.payment === 'naqd'
+                      ? 'Naqd'
+                      : order.payment === 'karta'
+                      ? 'Karta'
+                      : 'Noma’lum'}
+                  </Typography>
+                </Stack>
+                {order.notes && (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography variant="caption">
+                      Izoh: {order.notes}
+                    </Typography>
+                  </Stack>
+                )}
+                {order.status === 'kuryer_oldi' && (
+                  <>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <PersonIcon fontSize="small" color="action" />
+                      <Typography variant="caption">
+                  Kuryer: {order.courier?.user.username || 'Ma’lumot mavjud emas'}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <Phone fontSize="small" color="action" />
+                      {order.courier?.phone_number ? (
+                  <Typography
+                    variant="caption"
+                    component="a"
+                    href={`tel:${order.courier.phone_number}`}
+                    sx={{
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                    aria-label={`Call courier at ${order.courier.phone_number}`}
+                  >
+                    Kuryer telefoni: {order.courier.phone_number}
+                  </Typography>
+                      ) : (
+                  <Typography variant="caption">
+                    Kuryer telefoni: Ma’lumot mavjud emas
+                  </Typography>
+                      )}
+                    </Stack>
+                  </>
+                )}
+                    </Stack>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
+                Mahsulotlar ({order.items?.length || 0})
+                    </Typography>
+                    <List dense>
+                {order.items && order.items.length > 0 ? (
+                  order.items.map((item, index) => (
+                    <ListItem key={index} sx={{ py: 0.5 }}>
+                      <ListItemAvatar>
+                  <Avatar
+                    variant="rounded"
+                    src={
+                      item.product?.photo
+                        ? `${BASE_URL}${item.product.photo}`
+                        : undefined
+                    }
+                    sx={{ bgcolor: 'grey.200', width: 28, height: 28 }}
+                  >
+                    <Restaurant fontSize="small" />
+                  </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                  primary={item.product?.title || 'Noma’lum'}
+                  secondary={`${item.quantity} × ${item.price || 0} so‘m`}
+                  primaryTypographyProps={{ variant: 'caption' }}
+                  secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                      <Typography variant="caption" fontWeight="bold">
+                  {(item.quantity * parseFloat(item.price || 0)).toLocaleString(
+                    'uz-UZ'
+                  )}{' '}
+                  so‘m
+                      </Typography>
+                    </ListItem>
+                  ))
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Mahsulot yo‘q
+                  </Typography>
+                )}
+                    </List>
+                  </Grid>
                 </Grid>
-              ))}
+              </Box>
+                  </Collapse>
+                </CardContent>
+              </Card>
             </Grid>
-          )}
-        </Box>
+                ))}
+              </Grid>
+            )}
+          </Box>
 
-        {/* Last Fetch Time */}
+          {/* Last Fetch Time */}
         {lastFetch && (
           <Typography
             variant="caption"

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -24,9 +25,6 @@ import HomeIcon from '@mui/icons-material/Home';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LockIcon from '@mui/icons-material/Lock';
-import EmailIcon from '@mui/icons-material/Email';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 
 const theme = createTheme({
@@ -83,7 +81,6 @@ const Register = () => {
     address: '',
     phone_number: '',
     location: '',
-    email: '',
     password: '',
   });
   const [error, setError] = useState('');
@@ -94,7 +91,7 @@ const Register = () => {
 
   const handleDetectLocation = (retries = 3, delay = 2000) => {
     setIsLoading(true);
-    setError("");
+    setError('');
 
     if (!navigator.geolocation) {
       setError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi.");
@@ -108,23 +105,23 @@ const Register = () => {
           const { latitude, longitude } = position.coords;
           const location = `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`;
           setFormData({ ...formData, location });
-          setSuccess("Joylashuv muvaffaqiyatli aniqlandi!");
+          setSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
           setIsLoading(false);
         },
         (err) => {
-          console.error("Geolokatsiya xatosi:", err.message, "Kod:", err.code);
+          console.error('Geolokatsiya xatosi:', err.message, 'Kod:', err.code);
           if (err.code === 1) {
             setError("Joylashuvga ruxsat berilmadi. Qo'lda kiriting.");
           } else if (err.code === 2) {
             if (attemptsLeft > 0) {
               setTimeout(() => attemptLocation(attemptsLeft - 1), delay);
             } else {
-              setError("Joylashuvni aniqlash imkonsiz. Internet aloqasini tekshiring.");
+              setError('Joylashuvni aniqlash imkonsiz. Internet aloqasini tekshiring.');
             }
           } else if (err.code === 3) {
-            setError("Joylashuvni aniqlash vaqti o'tdi. Qayta urinib ko'ring.");
+            setError('Joylashuvni aniqlash vaqti o‘tdi. Qayta urinib ko‘ring.');
           } else {
-            setError("Joylashuvni aniqlashda noma'lum xatolik yuz berdi.");
+            setError('Joylashuvni aniqlashda noma‘lum xatolik yuz berdi.');
           }
           setIsLoading(false);
         },
@@ -150,19 +147,12 @@ const Register = () => {
     setSuccess('');
     setIsLoading(true);
 
-    // Validation
     if (formData.username.length < 3) {
       setError("Foydalanuvchi ismi kamida 3 belgidan iborat bo'lishi kerak.");
       setIsLoading(false);
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError("To'g'ri email manzilini kiriting.");
-      setIsLoading(false);
-      return;
-    }
-    const phoneRegex = /^\+998\d+$/;
+    const phoneRegex = /^\+998\d{9}$/;
     if (!phoneRegex.test(formData.phone_number)) {
       setError("Telefon raqami +998 bilan boshlanib, 9 ta raqamdan iborat bo'lishi kerak.");
       setIsLoading(false);
@@ -180,54 +170,51 @@ const Register = () => {
     }
 
     const payload = {
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
+      username: formData.username.trim(),
       address: formData.address,
       phone_number: formData.phone_number,
       location: formData.location,
+      password: formData.password,
     };
 
     try {
-      // Register the user
       const registerResponse = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
         payload,
         { headers: { 'Content-Type': 'application/json' } }
       );
 
-      // Get tokens
       const loginResponse = await axios.post(
         'https://hosilbek.pythonanywhere.com/api/token/',
         {
-          username: formData.username,
+          username: formData.username.trim(),
           password: formData.password,
-        }
+        },
+        { headers: { 'Content-Type': 'application/json' } }
       );
 
       const { access: authToken, refresh: refreshToken } = loginResponse.data;
 
-      // Only save tokens, not user data
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
 
       setSuccess("Ro'yxatdan o'tish muvaffaqiyatli! Profil sahifasiga o'tilmoqda...");
       setTimeout(() => navigate('/profile'), 2000);
     } catch (err) {
-      console.log('Registration Error:', err.response?.data);
+      console.error('Registration Error:', err.response?.data);
       let errorMessage = "Ro'yxatdan o'tishda xatolik yuz berdi.";
       if (err.response) {
         if (err.response.status === 400) {
           if (err.response.data.username) {
             errorMessage = `Foydalanuvchi nomi band: ${err.response.data.username.join(' ')}`;
-          } else if (err.response.data.email) {
-            errorMessage = `Email band: ${err.response.data.email.join(' ')}`;
           } else {
             errorMessage = err.response.data.message || "Noto'g'ri ma'lumotlar kiritildi.";
           }
         } else if (err.response.status === 500) {
-          errorMessage = "Bu foydalanuvchi nomi bant !";
+          errorMessage = "Server xatosi. Iltimos, keyinroq urinib ko'ring.";
         }
+      } else if (err.request) {
+        errorMessage = 'Tarmoq xatosi. Internet aloqangizni tekshiring.';
       }
       setError(errorMessage);
     } finally {
@@ -262,7 +249,7 @@ const Register = () => {
                   </Avatar>
                 </Box>
                 <Typography variant="h4" align="center" gutterBottom>
-                  Ro'yxatdan o'tish
+                  Ro‘yxatdan o‘tish
                 </Typography>
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
                   <TextField
@@ -273,27 +260,11 @@ const Register = () => {
                     onChange={handleChange}
                     margin="normal"
                     required
+                    autoComplete="username"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
                           <PersonIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                    type="email"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <EmailIcon color="action" />
                         </InputAdornment>
                       ),
                     }}
@@ -370,6 +341,7 @@ const Register = () => {
                     onChange={handleChange}
                     margin="normal"
                     required
+                    autoComplete="new-password"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -389,36 +361,31 @@ const Register = () => {
                       ),
                     }}
                   />
-                  {isLoading && <LinearProgress sx={{ mt: 2, mb: 2 }} />}
+                  {isLoading && <LinearProgress sx={{ mt: 2, mb: 2, borderRadius: 4 }} />}
                   <Button
                     type="submit"
                     fullWidth
                     variant="contained"
                     color="primary"
-                    sx={{ mt: 3, mb: 2 }}
+                    sx={{ mt: 3, mb: 2, py: 1.5 }}
                     disabled={isLoading}
                   >
-                    {isLoading ? "Yuklanmoqda..." : "Ro'yxatdan o'tish"}
+                    {isLoading ? 'Yuklanmoqda...' : 'Ro‘yxatdan o‘tish'}
                   </Button>
                   <Button
-                    type="submit"
-
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 3, mb: 2 }}
-                    disabled={isLoading}
                     fullWidth
+                    variant="outlined"
+                    color="secondary"
+                    sx={{ mb: 2, py: 1.5 }}
                     onClick={() => navigate('/login')}
+                    disabled={isLoading}
                   >
-                    Kirish
+                    Tizimga kirish
                   </Button>
                 </Box>
               </CardContent>
-
             </Card>
-
           </Fade>
-
           <Snackbar
             open={!!error || !!success}
             autoHideDuration={6000}
@@ -428,7 +395,9 @@ const Register = () => {
             <MuiAlert
               onClose={handleClose}
               severity={error ? 'error' : 'success'}
-              sx={{ width: '100%' }}
+              elevation={6}
+              variant="filled"
+              sx={{ borderRadius: 8 }}
             >
               {error || success}
             </MuiAlert>
@@ -440,5 +409,3 @@ const Register = () => {
 };
 
 export default Register;
-
-
