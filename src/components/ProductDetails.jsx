@@ -10,11 +10,11 @@ import {
   Share as ShareIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  FilterAlt as FilterIcon,
   AddShoppingCart as AddToCartIcon,
   RemoveShoppingCart as RemoveFromCartIcon,
   CheckCircle as CheckCircleIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  MoreVert as MoreIcon
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -39,45 +39,21 @@ import {
   Tooltip,
   Card,
   CardContent,
-  CardMedia
+  CardMedia,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon
 } from '@mui/material';
-import { useMediaQuery, useTheme } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-
-// Types (for reference, not enforced in JSX)
-// interface Product {
-//   id: number;
-//   title: string;
-//   description: string;
-//   price: number;
-//   discounted_price?: number;
-//   photo: string;
-//   category: { id: string; name: string };
-//   kitchen: { id: number; name: string; latitude?: number; longitude?: number };
-// }
-// interface Category {
-//   id: string;
-//   name: string;
-// }
-// interface CartItem {
-//   id: number;
-//   cartItemId: string;
-//   kitchen_id: number;
-//   product_id: number;
-//   title: string;
-//   price: number;
-//   original_price: number;
-//   quantity: number;
-//   photo: string;
-//   user_id: number;
-// }
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // State
   const [product, setProduct] = useState(null);
@@ -97,12 +73,14 @@ const ProductDetails = () => {
   const [imageLoading, setImageLoading] = useState(true);
   const [inCart, setInCart] = useState(false);
   const [cartItemId, setCartItemId] = useState(null);
+  const [bottomNavValue, setBottomNavValue] = useState(0);
+  const [speedDialOpen, setSpeedDialOpen] = useState(false);
 
   // Axios instance
   const axiosInstance = axios.create({
     baseURL: 'https://hosilbek.pythonanywhere.com/api/',
     headers: { 'Content-Type': 'application/json' },
-    timeout: 10000, // 10s timeout
+    timeout: 10000,
   });
 
   // Update cart data
@@ -181,7 +159,7 @@ const ProductDetails = () => {
     if (existing) {
       existing.quantity += qty;
     } else {
-      const cartItemId = crypto.randomUUID(); // Unique ID
+      const cartItemId = crypto.randomUUID();
       cart.push({
         id: product.id,
         cartItemId,
@@ -215,23 +193,10 @@ const ProductDetails = () => {
 
     localStorage.setItem('cart', JSON.stringify(updatedCart));
     window.dispatchEvent(new Event('storage'));
-    showSnackbar(`${product.title} savatdan o‘chirildi`, 'info', {
-      action: (
-        <Button
-          color="inherit"
-          size="small"
-          onClick={() => {
-            addToCart(itemToRemove.quantity);
-            setSnackbarOpen(false);
-          }}
-        >
-          Qaytarish
-        </Button>
-      ),
-    });
+    showSnackbar(`${product.title} savatdan o‘chirildi`, 'info');
     setInCart(false);
     setCartItemId(null);
-  }, [product, showSnackbar, addToCart]);
+  }, [product, showSnackbar]);
 
   const toggleFavorite = useCallback(() => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
@@ -271,30 +236,26 @@ const ProductDetails = () => {
     }
     const lat = product.kitchen.latitude;
     const lon = product.kitchen.longitude;
-    const url = isMobile
-      ? `geo:${lat},${lon}?q=${lat},${lon}`
-      : `https://www.google.com/maps?q=${lat},${lon}`;
+    const url = `geo:${lat},${lon}?q=${lat},${lon}`;
     window.open(url, '_blank', 'noopener,noreferrer');
-  }, [product, isMobile, showSnackbar]);
+  }, [product, showSnackbar]);
 
   // Loading state
   if (loading) {
     return (
-      <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
-        <Skeleton variant="rectangular" width={100} height={24} sx={{ mb: 3 }} />
-        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 4 }}>
-          <Box sx={{ width: isMobile ? '100%' : '50%' }}>
-            <Skeleton variant="rectangular" height={isMobile ? 300 : 400} />
-          </Box>
-          <Box sx={{ width: isMobile ? '100%' : '50%' }}>
-            <Skeleton variant="text" width="80%" height={40} />
-            <Skeleton variant="text" width="60%" height={24} sx={{ mb: 2 }} />
-            <Skeleton variant="text" width="40%" height={32} sx={{ mb: 3 }} />
-            <Skeleton variant="text" width="20%" height={24} sx={{ mb: 1 }} />
-            <Skeleton variant="text" width="100%" height={80} />
-            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-              <Skeleton variant="rectangular" width={120} height={40} />
-              <Skeleton variant="rectangular" width={200} height={40} />
+      <Box sx={{ p: 2 }}>
+        <Skeleton variant="rectangular" width={100} height={24} sx={{ mb: 2 }} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Skeleton variant="rectangular" height={300} />
+          <Box>
+            <Skeleton variant="text" width="80%" height={32} />
+            <Skeleton variant="text" width="60%" height={24} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
+            <Skeleton variant="text" width="20%" height={20} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width="100%" height={60} />
+            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+              <Skeleton variant="rectangular" width={100} height={36} />
+              <Skeleton variant="rectangular" width={150} height={36} />
             </Box>
           </Box>
         </Box>
@@ -305,12 +266,11 @@ const ProductDetails = () => {
   // Error state
   if (error) {
     return (
-      <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
+      <Box sx={{ p: 2 }}>
         <Button
           onClick={() => navigate(-1)}
           startIcon={<ArrowBackIcon />}
-          sx={{ mb: 3 }}
-          aria-label="Orqaga"
+          sx={{ mb: 2 }}
         >
           Orqaga
         </Button>
@@ -320,8 +280,7 @@ const ProductDetails = () => {
         <Button
           variant="contained"
           onClick={fetchData}
-          sx={{ mt: 2 }}
-          aria-label="Qayta urinish"
+          fullWidth
         >
           Qayta urinish
         </Button>
@@ -329,318 +288,200 @@ const ProductDetails = () => {
     );
   }
 
+  // Speed dial actions
+  const actions = [
+    {
+      icon: isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />,
+      name: isFavorite ? 'Sevimlilardan o‘chirish' : 'Sevimlilarga qo‘shish',
+      action: toggleFavorite
+    },
+    {
+      icon: <ShareIcon />,
+      name: 'Ulashish',
+      action: shareProduct
+    },
+    {
+      icon: inCart ? <RemoveFromCartIcon color="error" /> : <AddToCartIcon />,
+      name: inCart ? 'Savatdan o‘chirish' : 'Savatga qo‘shish',
+      action: inCart ? removeFromCart : () => addToCart(1)
+    }
+  ];
+
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: isMobile ? 2 : 3 }}>
-      {/* Back button */}
-      <Button
-        onClick={() => navigate(-1)}
-        startIcon={<ArrowBackIcon />}
-        sx={{ mb: 3 }}
-        aria-label="Orqaga"
-      >
-        Orqaga
-      </Button>
+    <Box sx={{ pb: 7 }}>
+     
 
       {/* Main content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Card sx={{ boxShadow: 3, borderRadius: 2, overflow: 'hidden' }}>
-          <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
-            {/* Product image */}
-            <Box sx={{
-              width: isMobile ? '100%' : '50%',
-              position: 'relative',
-              bgcolor: '#f5f5f5',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              p: isMobile ? 2 : 4,
-              minHeight: isMobile ? 300 : 400
-            }}>
-              {imageLoading && <Skeleton variant="rectangular" width="100%" height="100%" />}
-              <img
-                src={product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : '/placeholder-product.jpg'}
-                alt={product.title}
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  maxHeight: isMobile ? 300 : 400,
-                  objectFit: 'contain',
-                  display: imageLoading ? 'none' : 'block'
-                }}
-                onLoad={() => setImageLoading(false)}
-                onError={(e) => {
-                  e.target.src = '/placeholder-product.jpg';
-                  setImageLoading(false);
-                }}
-              />
-              {isMobile && (
-                <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 1 }}>
-                  <Tooltip title={isFavorite ? "Sevimlilardan o‘chirish" : "Sevimlilarga qo‘shish"}>
-                    <IconButton
-                      onClick={toggleFavorite}
-                      size="small"
-                      sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
-                      aria-label={isFavorite ? "Sevimlilardan o‘chirish" : "Sevimlilarga qo‘shish"}
-                    >
-                      {isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Ulashish">
-                    <IconButton
-                      onClick={shareProduct}
-                      size="small"
-                      sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
-                      aria-label="Ulashish"
-                    >
-                      <ShareIcon />
-                    </IconButton>
-                  </Tooltip>
-                  {inCart ? (
-                    <Tooltip title="Savatdan o‘chirish">
-                      <IconButton
-                        onClick={removeFromCart}
-                        size="small"
-                        sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
-                        aria-label="Savatdan o‘chirish"
-                      >
-                        <RemoveFromCartIcon color="error" />
-                      </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Savatga qo‘shish">
-                      <IconButton
-                        onClick={() => addToCart(1)}
-                        size="small"
-                        sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
-                        aria-label="Savatga qo‘shish"
-                      >
-                        <AddToCartIcon />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
+      <Box sx={{ p: 2 }}>
+        {/* Product image */}
+        <Box sx={{
+          position: 'relative',
+          bgcolor: '#f5f5f5',
+          borderRadius: 2,
+          overflow: 'hidden',
+          mb: 2,
+          height: 300,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {imageLoading && <Skeleton variant="rectangular" width="100%" height="100%" />}
+          <img
+            src={product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : '/placeholder-product.jpg'}
+            alt={product.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: imageLoading ? 'none' : 'block'
+            }}
+            onLoad={() => setImageLoading(false)}
+            onError={(e) => {
+              e.target.src = '/placeholder-product.jpg';
+              setImageLoading(false);
+            }}
+          />
+        </Box>
+
+        {/* Product details */}
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {product.title}
+            </Typography>
+          </Box>
+
+          {/* Rating */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <Rating
+              value={4.5}
+              precision={0.5}
+              readOnly
+              size="small"
+              emptyIcon={<StarBorderIcon fontSize="inherit" />}
+              sx={{ color: 'warning.main' }}
+            />
+            <Typography variant="body2" sx={{ ml: 0.5, color: 'text.secondary' }}>
+              (24)
+            </Typography>
+          </Box>
+
+          {/* Price */}
+          <Box sx={{ mb: 2 }}>
+            {product.discounted_price ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'error.main' }}>
+                  {parseFloat(product.discounted_price).toLocaleString('uz-UZ')} so'm
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', textDecoration: 'line-through' }}>
+                  {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
+                </Typography>
+                <Chip
+                  label={`${Math.round((1 - product.discounted_price / product.price) * 100)}% chegirma`}
+                  color="error"
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+            ) : (
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
+              </Typography>
+            )}
+          </Box>
+
+          {/* Description */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              Tavsif
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line' }}>
+              {product.description || 'Tavsif mavjud emas'}
+            </Typography>
+          </Box>
+
+          {/* Category and kitchen */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
+            <Box>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                Kategoriya
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {product.category?.name || 'Noma\'lum'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                Oshxona
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {product.kitchen?.name || 'Noma\'lum'}
+              </Typography>
+              {product.kitchen?.latitude && product.kitchen?.longitude && (
+                <Button
+                  variant="text"
+                  size="small"
+                  startIcon={<LocationIcon fontSize="small" />}
+                  onClick={openMap}
+                  sx={{ p: 0, textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Xaritada ko'rish
+                </Button>
               )}
             </Box>
+          </Box>
 
-            {/* Product details */}
-            <Box sx={{ width: isMobile ? '100%' : '50%', p: isMobile ? 2 : 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
-                  {product.title}
-                </Typography>
-                {!isMobile && (
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Tooltip title={isFavorite ? "Sevimlilardan o‘chirish" : "Sevimlilarga qo‘shish"}>
-                      <IconButton
-                        onClick={toggleFavorite}
-                        aria-label={isFavorite ? "Sevimlilardan o‘chirish" : "Sevimlilarga qo‘shish"}
-                      >
-                        {isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Ulashish">
-                      <IconButton onClick={shareProduct} aria-label="Ulashish">
-                        <ShareIcon />
-                      </IconButton>
-                    </Tooltip>
-                    {inCart ? (
-                      <Tooltip title="Savatdan o‘chirish">
-                        <IconButton onClick={removeFromCart} aria-label="Savatdan o‘chirish">
-                          <RemoveFromCartIcon color="error" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip title="Savatga qo‘shish">
-                        <IconButton onClick={() => addToCart(1)} aria-label="Savatga qo‘shish">
-                          <AddToCartIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Box>
-                )}
-              </Box>
-
-              {/* Rating */}
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Rating
-                  value={4.5} // Placeholder; replace with product.rating if available
-                  precision={0.5}
-                  readOnly
-                  emptyIcon={<StarBorderIcon fontSize="inherit" />}
-                  sx={{ color: 'warning.main' }}
-                />
-                <Typography variant="body2" sx={{ ml: 1, color: 'text.secondary' }}>
-                  (24 sharh)
-                </Typography>
-              </Box>
-
-              {/* Price */}
-              <Box sx={{ mb: 3 }}>
-                {product.discounted_price ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
-                      {parseFloat(product.discounted_price).toLocaleString('uz-UZ')} so'm
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: 'text.secondary', textDecoration: 'line-through' }}>
-                      {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
-                    </Typography>
-                    <Chip
-                      label={`${Math.round((1 - product.discounted_price / product.price) * 100)}% chegirma`}
-                      color="error"
-                      size="small"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  </Box>
-                ) : (
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {parseFloat(product.price).toLocaleString('uz-UZ')} so'm
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Description */}
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                  Tavsif
-                </Typography>
-                <Typography variant="body1" sx={{ color: 'text.secondary', whiteSpace: 'pre-line' }}>
-                  {product.description || 'Tavsif mavjud emas'}
-                </Typography>
-              </Box>
-
-              {/* Category, kitchen, and map */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
-                <Box>
-                  <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 0.5 }}>
-                    Kategoriya
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {product.category?.name || 'Noma\'lum'}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 0.5 }}>
-                    Oshxona
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {product.kitchen?.name || 'Noma\'lum'}
-                  </Typography>
-                  {product.kitchen?.latitude && product.kitchen?.longitude && (
-                    <Button
-                      variant="text"
-                      startIcon={<LocationIcon />}
-                      onClick={openMap}
-                      sx={{ mt: 1, p: 0, textTransform: 'none' }}
-                      aria-label="Oshxona manzilini xaritada ko‘rish"
-                    >
-                      Xaritada ko‘rish
-                    </Button>
-                  )}
-                </Box>
-              </Box>
-
-              <Divider sx={{ my: 3 }} />
-
-              {/* Quantity and cart actions */}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  overflow: 'hidden'
-                }}>
-                  <Button
-                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    disabled={quantity <= 1}
-                    sx={{ minWidth: 40, px: 1, '&:disabled': { opacity: 0.5 } }}
-                    aria-label="Miqdorni kamaytirish"
-                  >
-                    -
-                  </Button>
-                  <Typography sx={{ width: 40, textAlign: 'center' }}>
-                    {quantity}
-                  </Typography>
-                  <Button
-                    onClick={() => setQuantity((prev) => prev + 1)}
-                    sx={{ minWidth: 40, px: 1 }}
-                    aria-label="Miqdorni ko‘paytirish"
-                  >
-                    +
-                  </Button>
-                </Box>
-
-                {inCart ? (
-                  <Button
-                    onClick={removeFromCart}
-                    variant="outlined"
-                    color="error"
-                    size="large"
-                    startIcon={<RemoveFromCartIcon />}
-                    sx={{ flex: 1, minWidth: 200, py: 1.5 }}
-                    aria-label="Savatdan o‘chirish"
-                  >
-                    Savatdan o‘chirish
-                    <Badge
-                      badgeContent={cartCount}
-                      color="error"
-                      sx={{ ml: 1, '& .MuiBadge-badge': { right: -10, top: -10 } }}
-                    />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => {
-                      setModalQuantity(quantity);
-                      setModalOpen(true);
-                    }}
-                    variant="contained"
-                    color="primary"
-                    size="large"
-                    startIcon={<CartIcon />}
-                    sx={{ flex: 1, minWidth: 200, py: 1.5 }}
-                    aria-label="Savatga qo‘shish"
-                  >
-                    Savatga qo‘shish
-                    <Badge
-                      badgeContent={cartCount}
-                      color="error"
-                      sx={{ ml: 1, '& .MuiBadge-badge': { right: -10, top: -10 } }}
-                    />
-                  </Button>
-                )}
-              </Box>
+          {/* Quantity selector */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              Miqdor
+            </Typography>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              overflow: 'hidden'
+            }}>
+              <Button
+                onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                disabled={quantity <= 1}
+                sx={{ minWidth: 32, px: 0, '&:disabled': { opacity: 0.5 } }}
+                size="small"
+              >
+                -
+              </Button>
+              <Typography sx={{ width: 32, textAlign: 'center', fontSize: '0.875rem' }}>
+                {quantity}
+              </Typography>
+              <Button
+                onClick={() => setQuantity((prev) => prev + 1)}
+                sx={{ minWidth: 32, px: 0 }}
+                size="small"
+              >
+                +
+              </Button>
             </Box>
           </Box>
-        </Card>
-      </motion.div>
+        </Box>
 
-      {/* Related products */}
-      {filteredProducts.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card sx={{ p: isMobile ? 2 : 3, mt: 4, boxShadow: 3, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                O‘xshash mahsulotlar
+        {/* Related products */}
+        {filteredProducts.length > 0 && (
+          <Box sx={{ mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                O'xshash mahsulotlar
               </Typography>
-              <FormControl size="small" sx={{ minWidth: 180 }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
                 <Select
                   value={selectedCategory}
                   onChange={handleCategoryChange}
-                  IconComponent={FilterIcon}
-                  sx={{ '& .MuiSelect-icon': { color: 'primary.main' } }}
-                  aria-label="Kategoriyani tanlash"
+                  size="small"
+                  sx={{ fontSize: '0.75rem' }}
                 >
                   {categories.map((category) => (
-                    <MenuItem key={category.id} value={category.id}>
+                    <MenuItem key={category.id} value={category.id} sx={{ fontSize: '0.75rem' }}>
                       {category.name}
                     </MenuItem>
                   ))}
@@ -649,13 +490,13 @@ const ProductDetails = () => {
             </Box>
             <Box sx={{
               display: 'grid',
-              gridTemplateColumns: isSmallMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-              gap: isMobile ? 2 : 3
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 2
             }}>
               {filteredProducts.map((p) => (
                 <motion.div
                   key={p.id}
-                  whileHover={{ scale: 1.03 }}
+                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <Card
@@ -665,29 +506,29 @@ const ProductDetails = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       cursor: 'pointer',
-                      '&:hover': { boxShadow: 2 }
                     }}
                   >
                     <CardMedia
                       component="img"
-                      height="120"
+                      height="100"
                       image={p.photo ? `https://hosilbek.pythonanywhere.com${p.photo}` : '/placeholder-product.jpg'}
                       alt={p.title}
                       sx={{ objectFit: 'contain', bgcolor: '#f5f5f5' }}
                     />
-                    <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                    <CardContent sx={{ p: 1 }}>
                       <Typography variant="body2" sx={{
                         fontWeight: 500,
-                        mb: 1,
-                        height: 40,
+                        mb: 0.5,
+                        height: 36,
                         overflow: 'hidden',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
+                        WebkitBoxOrient: 'vertical',
+                        fontSize: '0.75rem'
                       }}>
                         {p.title}
                       </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
                         {parseFloat(p.discounted_price || p.price).toLocaleString('uz-UZ')} so'm
                       </Typography>
                       {p.discounted_price && (
@@ -695,31 +536,60 @@ const ProductDetails = () => {
                           {parseFloat(p.price).toLocaleString('uz-UZ')} so'm
                         </Typography>
                       )}
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart(1);
-                        }}
-                        size="small"
-                        sx={{
-                          position: 'absolute',
-                          bottom: 8,
-                          right: 8,
-                          bgcolor: 'background.paper',
-                          '&:hover': { bgcolor: 'primary.main', color: 'primary.contrastText' }
-                        }}
-                        aria-label="Savatga qo‘shish"
-                      >
-                        <AddToCartIcon fontSize="small" />
-                      </IconButton>
                     </CardContent>
                   </Card>
                 </motion.div>
               ))}
             </Box>
-          </Card>
-        </motion.div>
-      )}
+          </Box>
+        )}
+      </Box>
+
+      {/* Bottom navigation for actions */}
+      <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200 }} elevation={3}>
+        <BottomNavigation
+          showLabels
+          value={bottomNavValue}
+          onChange={(event, newValue) => {
+            setBottomNavValue(newValue);
+          }}
+        >
+          <BottomNavigationAction
+            label={inCart ? "Savatda" : "Savatga"}
+            icon={
+              <Badge badgeContent={inCart ? null : cartCount} color="error">
+                {inCart ? <RemoveFromCartIcon color="error" /> : <AddToCartIcon />}
+              </Badge>
+            }
+            onClick={inCart ? removeFromCart : () => addToCart(quantity)}
+          />
+          <BottomNavigationAction
+            label={isFavorite ? "Sevimli" : "Sevimliga"}
+            icon={isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+            onClick={toggleFavorite}
+          />
+          <BottomNavigationAction label="Ulashish" icon={<ShareIcon />} onClick={shareProduct} />
+        </BottomNavigation>
+      </Paper>
+
+      {/* Speed dial for additional actions (alternative to bottom nav) */}
+      <SpeedDial
+        ariaLabel="Product actions"
+        sx={{ position: 'fixed', bottom: 80, right: 16 }}
+        icon={<SpeedDialIcon />}
+        onClose={() => setSpeedDialOpen(false)}
+        onOpen={() => setSpeedDialOpen(true)}
+        open={speedDialOpen}
+      >
+        {actions.map((action) => (
+          <SpeedDialAction
+            key={action.name}
+            icon={action.icon}
+            tooltipTitle={action.name}
+            onClick={action.action}
+          />
+        ))}
+      </SpeedDial>
 
       {/* Quantity modal */}
       <Dialog
@@ -727,28 +597,18 @@ const ProductDetails = () => {
         onClose={() => setModalOpen(false)}
         fullWidth
         maxWidth="xs"
-        aria-labelledby="quantity-dialog-title"
       >
-        <DialogTitle id="quantity-dialog-title" sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          py: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}>
-          Miqdorni tanlang
-          <IconButton
-            onClick={() => setModalOpen(false)}
-            size="small"
-            aria-label="Yopish"
-          >
-            <CloseIcon />
-          </IconButton>
+        <DialogTitle sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Miqdorni tanlang
+            <IconButton onClick={() => setModalOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ py: 3 }}>
-          <Typography variant="body1" sx={{ mb: 3 }}>
-            <strong>{product?.title}</strong> dan nechta qo‘shmoqchisiz?
+        <DialogContent sx={{ py: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            <strong>{product?.title}</strong> dan nechta qo'shmoqchisiz?
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <Button
@@ -756,7 +616,6 @@ const ProductDetails = () => {
               onClick={() => setModalQuantity(q => Math.max(1, q - 1))}
               size="large"
               sx={{ minWidth: 40 }}
-              aria-label="Miqdorni kamaytirish"
             >
               -
             </Button>
@@ -767,32 +626,29 @@ const ProductDetails = () => {
                 if (!isNaN(val)) setModalQuantity(Math.max(1, val));
               }}
               inputProps={{
-                style: { textAlign: 'center', fontSize: '1.2rem', padding: '8px' },
+                style: { textAlign: 'center', fontSize: '1rem', padding: '8px' },
                 min: 1,
                 type: 'number'
               }}
-              size="medium"
+              size="small"
               sx={{ width: 80 }}
-              aria-label="Miqdor"
             />
             <Button
               variant="outlined"
               onClick={() => setModalQuantity(q => q + 1)}
               size="large"
               sx={{ minWidth: 40 }}
-              aria-label="Miqdorni ko‘paytirish"
             >
               +
             </Button>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <DialogActions sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
           <Button
             onClick={() => setModalOpen(false)}
             color="inherit"
-            size="large"
-            sx={{ mr: 2 }}
-            aria-label="Bekor qilish"
+            size="small"
+            sx={{ mr: 1 }}
           >
             Bekor qilish
           </Button>
@@ -803,12 +659,10 @@ const ProductDetails = () => {
             }}
             variant="contained"
             color="primary"
-            size="large"
+            size="small"
             startIcon={<CartIcon />}
-            sx={{ px: 3 }}
-            aria-label={`Savatga ${modalQuantity} ta qo‘shish`}
           >
-            Qo‘shish ({modalQuantity})
+            Qo'shish ({modalQuantity})
           </Button>
         </DialogActions>
       </Dialog>
@@ -830,22 +684,6 @@ const ProductDetails = () => {
             info: <CartIcon fontSize="inherit" />,
             error: <RemoveFromCartIcon fontSize="inherit" />
           }}
-          action={snackbarSeverity === 'info' && (
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-                const itemToRestore = cart.find(item => item.id === product.id);
-                if (itemToRestore) {
-                  addToCart(itemToRestore.quantity);
-                }
-                setSnackbarOpen(false);
-              }}
-            >
-              Qaytarish
-            </Button>
-          )}
         >
           {snackbarMessage}
         </Alert>
