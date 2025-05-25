@@ -17,15 +17,20 @@ import {
   InputAdornment,
   IconButton,
   Fade,
-  Tooltip,
+  Tooltip, 
+
 } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PersonIcon from '@mui/icons-material/Person';
 import HomeIcon from '@mui/icons-material/Home';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LockIcon from '@mui/icons-material/Lock';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import { Email } from '@mui/icons-material';
+                 
 
 const theme = createTheme({
   palette: {
@@ -175,6 +180,7 @@ const Register = () => {
       phone_number: formData.phone_number,
       location: formData.location,
       password: formData.password,
+      email: 'user@gmail.com'
     };
 
     try {
@@ -231,181 +237,182 @@ const Register = () => {
   return (
     <ThemeProvider theme={theme}>
       <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: theme.palette.background.default,
-        }}
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: theme.palette.background.default,
+        padding: 2,
+      }}
       >
-        <Container maxWidth="sm">
-          <Fade in={true} timeout={1000}>
-            <Card>
-              <CardContent sx={{ p: 4 }}>
-                <Box display="flex" justifyContent="center" mb={3}>
-                  <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
-                    <PersonIcon fontSize="large" />
-                  </Avatar>
-                </Box>
-                <Typography variant="h4" align="center" gutterBottom>
-                  Ro‘yxatdan o‘tish
-                </Typography>
-                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-                  <TextField
-                    fullWidth
-                    label="Foydalanuvchi ismi"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                    autoComplete="username"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Manzil"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <HomeIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Telefon raqami"
-                    name="phone_number"
-                    value={formData.phone_number}
-                    onChange={handleChange}
-                    margin="normal"
-                    type="tel"
-                    required
-                    placeholder="+998901234567"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PhoneIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TextField
-                      fullWidth
-                      label="Joylashuv (masalan, Toshkent shahri)"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      margin="normal"
-                      required
-                      placeholder="Toshkent shahri"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LocationOnIcon color="action" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <Tooltip title="Joriy joylashuvni aniqlash">
-                      <IconButton
-                        onClick={() => handleDetectLocation()}
-                        disabled={isLoading}
-                        color="primary"
-                        sx={{ mt: 1 }}
-                      >
-                        <MyLocationIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  <TextField
-                    fullWidth
-                    label="Parol"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={handleChange}
-                    margin="normal"
-                    required
-                    autoComplete="new-password"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LockIcon color="action" />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            aria-label="toggle password visibility"
-                            onClick={handleClickShowPassword}
-                            edge="end"
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  {isLoading && <LinearProgress sx={{ mt: 2, mb: 2, borderRadius: 4 }} />}
-                  <Button
-                    type="submit"
-                    fullWidth
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 3, mb: 2, py: 1.5 }}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Yuklanmoqda...' : 'Ro‘yxatdan o‘tish'}
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    color="secondary"
-                    sx={{ mb: 2, py: 1.5 }}
-                    onClick={() => navigate('/login')}
-                    disabled={isLoading}
-                  >
-                    Tizimga kirish
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Fade>
-          <Snackbar
-            open={!!error || !!success}
-            autoHideDuration={6000}
-            onClose={handleClose}
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          >
-            <MuiAlert
-              onClose={handleClose}
-              severity={error ? 'error' : 'success'}
-              elevation={6}
-              variant="filled"
-              sx={{ borderRadius: 8 }}
+      <Container maxWidth="sm">
+        <Fade in={true} timeout={1000}>
+        <Card>
+          <CardContent sx={{ p: 4 }}>
+          <Box display="flex" justifyContent="center" mb={3}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+            <PersonIcon fontSize="large" />
+            </Avatar>
+          </Box>
+          <Typography variant="h4" align="center" gutterBottom>
+            Ro‘yxatdan o‘tish
+          </Typography>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+            <TextField
+            fullWidth
+            label="Foydalanuvchi ismi"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            margin="normal"
+            required
+            autoComplete="username"
+            InputProps={{
+              startAdornment: (
+              <InputAdornment position="start">
+                <PersonIcon color="action" />
+              </InputAdornment>
+              ),
+            }}
+            />
+            <TextField
+            fullWidth
+            label="Manzil"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            margin="normal"
+            required
+            InputProps={{
+              startAdornment: (
+              <InputAdornment position="start">
+                <HomeIcon color="action" />
+              </InputAdornment>
+              ),
+            }}
+            />
+            <TextField
+            fullWidth
+            label="Telefon raqami"
+            name="phone_number"
+            value={formData.phone_number}
+            onChange={handleChange}
+            margin="normal"
+            type="tel"
+            required
+            placeholder="+998901234567"
+            InputProps={{
+              startAdornment: (
+              <InputAdornment position="start">
+                <PhoneIcon color="action" />
+              </InputAdornment>
+              ),
+            }}
+            />
+            <Box display="flex" alignItems="center" gap={1}>
+            <TextField
+              fullWidth
+              label="Joylashuv (masalan, Toshkent shahri)"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              margin="normal"
+              required
+              placeholder="Toshkent shahri"
+              InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                <LocationOnIcon color="action" />
+                </InputAdornment>
+              ),
+              }}
+            />
+            <Tooltip title="Joriy joylashuvni aniqlash">
+              <IconButton
+              onClick={() => handleDetectLocation()}
+              disabled={isLoading}
+              color="primary"
+              sx={{ mt: 1 }}
+              >
+              <MyLocationIcon />
+              </IconButton>
+            </Tooltip>
+            </Box>
+            <TextField
+            fullWidth
+            label="Parol"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={handleChange}
+            margin="normal"
+            required
+            autoComplete="new-password"
+            InputProps={{
+              startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon color="action" />
+              </InputAdornment>
+              ),
+              endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                aria-label="toggle password visibility"
+                onClick={handleClickShowPassword}
+                edge="end"
+                >
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+              ),
+            }}
+            />
+            {isLoading && <LinearProgress sx={{ mt: 2, mb: 2, borderRadius: 4 }} />}
+            <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ mt: 3, mb: 2, py: 1.5 }}
+            disabled={isLoading}
             >
-              {error || success}
-            </MuiAlert>
-          </Snackbar>
-        </Container>
+            {isLoading ? 'Yuklanmoqda...' : 'Ro‘yxatdan o‘tish'}
+            </Button>
+            <Button
+            fullWidth
+            variant="outlined"
+            color="secondary"
+            sx={{ mb: 2, py: 1.5 }}
+            onClick={() => navigate('/login')}
+            disabled={isLoading}
+            >
+            Tizimga kirish
+            </Button>
+          </Box>
+          </CardContent>
+        </Card>
+        </Fade>
+        <Snackbar
+        open={!!error || !!success}
+        autoHideDuration={6000}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+        <MuiAlert
+          onClose={handleClose}
+          severity={error ? 'error' : 'success'}
+          elevation={6}
+          variant="filled"
+          sx={{ borderRadius: 8 }}
+        >
+          {error || success}
+        </MuiAlert>
+        </Snackbar>
+      </Container>
       </Box>
     </ThemeProvider>
-  );
+    );
 };
 
 export default Register;

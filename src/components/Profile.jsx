@@ -278,40 +278,7 @@ const Profile = () => {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: '100vh', background: theme.palette.background.default, pb: 8 }}>
-        <Box
-          sx={{
-            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-            height: isMobile ? 120 : 160,
-            position: 'relative',
-          }}
-        >
-          <IconButton
-            onClick={handleBack}
-            sx={{
-              position: 'absolute',
-              top: 16,
-              left: 16,
-              color: 'white',
-              bgcolor: 'rgba(255,255,255,0.2)',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
-            }}
-          >
-            <BackIcon />
-          </IconButton>
-          <Typography
-            variant="h5"
-            sx={{
-              position: 'absolute',
-              top: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              color: 'white',
-              fontWeight: 600,
-            }}
-          >
-            Mening Profilim
-          </Typography>
-        </Box>
+       
 
         <Container maxWidth="md">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
