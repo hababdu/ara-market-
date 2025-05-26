@@ -15,8 +15,15 @@ const Layout = () => {
   const [cartCount, setCartCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [position, setPosition] = useState(() => {
+    const savedPosition = localStorage.getItem('cartButtonPosition');
+    return savedPosition
+      ? JSON.parse(savedPosition)
+      : { x: window.innerWidth - 80, y: window.innerHeight - 160 };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Savatdagi mahsulotlar sonini hisoblash
   useEffect(() => {
     const updateCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
@@ -28,7 +35,6 @@ const Layout = () => {
     window.addEventListener('storage', updateCartCount);
     const interval = setInterval(updateCartCount, 1000);
 
-    // Scrollni kuzatish
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
     };
@@ -41,12 +47,61 @@ const Layout = () => {
     };
   }, []);
 
-  // Mobil menyuni yopish
+  useEffect(() => {
+    localStorage.setItem('cartButtonPosition', JSON.stringify(position));
+  }, [position]);
+
+  const handleDragStart = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    setDragStart({
+      x: clientX - position.x,
+      y: clientY - position.y,
+    });
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+
+    let newX = clientX - dragStart.x;
+    let newY = clientY - dragStart.y;
+
+    const buttonWidth = 64;
+    const buttonHeight = 64;
+    newX = Math.max(0, Math.min(newX, window.innerWidth - buttonWidth));
+    newY = Math.max(0, Math.min(newY, window.innerHeight - buttonHeight));
+
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDragMove);
+      window.addEventListener('touchend', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleDragEnd);
+    };
+  }, [isDragging, dragStart]);
+
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
   };
 
-  // Navigatsiya funktsiyasi
   const handleNavigate = (path) => {
     navigate(path);
     closeMobileMenu();
@@ -54,12 +109,10 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-[#FFF3E0] flex flex-col">
-      {/* Asosiy kontent */}
       <main className="flex-1 max-w-6xl mx-auto md:mt-20 mb-16 px-4">
         <Outlet />
       </main>
 
-      {/* Mobil pastki navigatsiya (faqat ikonalar) */}
       <nav className="fixed bottom-0 w-full bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white md:hidden flex justify-around items-center py-3 z-50 shadow-lg">
         <button
           onClick={() => handleNavigate('/')}
@@ -91,10 +144,19 @@ const Layout = () => {
         </button>
       </nav>
 
-      {/* Suzib yuruvchi savat tugmasi */}
       <button
         onClick={() => handleNavigate('/cart')}
-        className="fixed bottom-20 right-4 bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform z-50 md:hidden"
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+        className={`cart-button fixed text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform z-50 md:hidden ${
+          isDragging ? 'cursor-grabbing' : 'cursor-pointer'
+        } ${cartCount > 0 ? 'animate-cart-shake' : ''}`} // Add shake animation when cartCount changes
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          background: 'linear-gradient(90deg, #FF6200, #FFAB40)',
+          touchAction: 'none',
+        }}
         aria-label="Savat"
       >
         <div className="relative">

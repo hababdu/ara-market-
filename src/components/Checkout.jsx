@@ -70,7 +70,7 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate('/register');
+      navigate('/profile');
       return;
     }
 
@@ -81,7 +81,7 @@ const Checkout = () => {
         if (!parsedUser || !parsedUser.id) {
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Qayta kirish kerak.");
           setLoading(false);
-          navigate('/register');
+          navigate('/profile');
           return;
         }
 

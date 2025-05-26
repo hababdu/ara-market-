@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Fastfood as FastfoodIcon,
   LocalDining as KitchenIcon,
@@ -24,6 +24,7 @@ const shuffleArray = (array) => {
 };
 
 const ProductsList = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +37,18 @@ const ProductsList = () => {
   const [quantity, setQuantity] = useState(1);
   const [cartCount, setCartCount] = useState(0);
   const [inCart, setInCart] = useState(false);
+  const [animations, setAnimations] = useState([]);
+  const [cartPosition, setCartPosition] = useState(() => {
+    const savedPosition = localStorage.getItem('productsCartButtonPosition');
+    return savedPosition
+      ? JSON.parse(savedPosition)
+      : { x: window.innerWidth - 80, y: window.innerHeight - 160 };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
+  const addToCartButtonRef = useRef(null);
 
   const fetchProducts = async () => {
     try {
@@ -102,9 +113,82 @@ const ProductsList = () => {
     [products]
   );
 
-  // Add to cart
+  // Draggable cart button functionality
+  useEffect(() => {
+    localStorage.setItem('productsCartButtonPosition', JSON.stringify(cartPosition));
+  }, [cartPosition]);
+
+  const handleDragStart = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    setDragStart({
+      x: clientX - cartPosition.x,
+      y: clientY - cartPosition.y,
+    });
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+
+    let newX = clientX - dragStart.x;
+    let newY = clientY - dragStart.y;
+
+    const buttonWidth = 64;
+    const buttonHeight = 64;
+    newX = Math.max(0, Math.min(newX, window.innerWidth - buttonWidth));
+    newY = Math.max(0, Math.min(newY, window.innerHeight - buttonHeight));
+
+    setCartPosition({ x: newX, y: newY });
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDragMove);
+      window.addEventListener('touchend', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleDragEnd);
+    };
+  }, [isDragging, dragStart]);
+
+  // Add to cart with animation targeting the current cart position
   const addToCart = useCallback(() => {
     if (!selectedProduct) return;
+
+    const buttonRect = addToCartButtonRef.current?.getBoundingClientRect();
+    if (!buttonRect) return;
+
+    // Use the current cartPosition for the end position
+    const cartX = cartPosition.x + 32; // Center of the cart button (width/2)
+    const cartY = cartPosition.y + 32; // Center of the cart button (height/2)
+
+    const animationId = Date.now();
+    setAnimations((prev) => [
+      ...prev,
+      {
+        id: animationId,
+        startX: buttonRect.left + buttonRect.width / 2,
+        startY: buttonRect.top + buttonRect.height / 2,
+        endX: cartX,
+        endY: cartY,
+        photo: selectedProduct.photo,
+      },
+    ]);
+
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
     const existing = cart.find((item) => item.id === selectedProduct.id);
@@ -134,8 +218,12 @@ const ProductsList = () => {
     localStorage.setItem('cart', JSON.stringify(cart));
     window.dispatchEvent(new Event('storage'));
     setInCart(true);
-    setSelectedProduct(null); // Modalni yopish
-  }, [selectedProduct, quantity]);
+
+    setTimeout(() => {
+      setAnimations((prev) => prev.filter((anim) => anim.id !== animationId));
+      setSelectedProduct(null);
+    }, 1500);
+  }, [selectedProduct, quantity, cartPosition]);
 
   if (loading) {
     return (
@@ -166,7 +254,7 @@ const ProductsList = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-2 py-4">
+    <div className="min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-2 py-4 relative">
       <div className="max-w-7xl mx-auto">
         {/* Mobile Header */}
         <div className="mb-4">
@@ -291,11 +379,11 @@ const ProductsList = () => {
           <div className="grid grid-cols-2 gap-2">
             {filteredProducts.map((product) => (
               <div
-              style={{
-                background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0 , #FFF3E0)',
-              }}
+                style={{
+                  background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0, #FFF3E0)',
+                }}
                 key={product.id}
-                className=" rounded-lg shadow-sm overflow-hidden  hover:shadow-md transition-shadow duration-200 flex flex-col h-full cursor-pointer"
+                className="rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full cursor-pointer"
                 onClick={() => setSelectedProduct(product)}
                 aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
               >
@@ -321,14 +409,14 @@ const ProductsList = () => {
                 </div>
 
                 {/* Product Details */}
-                <div   style={{
-        background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
-      }}  className="p-3 flex-grow  flex flex-col">
+                <div
+                  style={{
+                    background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
+                  }}
+                  className="p-3 flex-grow flex flex-col"
+                >
                   <div className="flex justify-between items-start mb-2">
-                    <h3
-                      className="font-semibold text-sm text-[#333] truncate"
-                      title={product.title}
-                    >
+                    <h3 className="font-semibold text-sm text-[#333] truncate" title={product.title}>
                       {product.title || 'Yangi mahsulot'}
                     </h3>
                     <span className="bg-[#FFF3E0] text-[#FF6200] text-xs px-2 py-0.5 rounded-full">
@@ -338,7 +426,6 @@ const ProductsList = () => {
                   <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
                     {product.description || 'Tavsif mavjud emas'}
                   </p>
-                 
                   <div className="mt-auto">
                     <div className="flex items-center mb-1">
                       <PriceIcon className="w-4 h-4 mr-1 text-[#FF6200]" />
@@ -432,9 +519,7 @@ const ProductsList = () => {
               </p>
             </div>
 
-            
-
-            {/* Quantity Selector */}
+            {/* Quantity Selector and Add to Cart Button */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden">
                 <button
@@ -454,21 +539,67 @@ const ProductsList = () => {
                   +
                 </button>
               </div>
-              {/* Add to Cart Button */}
-            <button
-              onClick={addToCart}
-              className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden p-2 "
-            >
-              <CartIcon className="w-5 h-5 mr-2" />
-              Savatga qo'shish
-            </button>
-            
+              <button
+                ref={addToCartButtonRef}
+                onClick={addToCart}
+                className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden p-2 bg-[#FF6200] text-white hover:bg-[#FFAB40] transition-colors"
+              >
+                <CartIcon className="w-5 h-5 mr-2" />
+                Savatga qo'shish
+              </button>
             </div>
-
-            
           </div>
         </div>
       )}
+
+      {/* Draggable Floating Cart Button */}
+      <button
+        onClick={() => navigate('/cart')}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+        className={`fixed z-50 bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform ${
+          isDragging ? 'cursor-grabbing' : 'cursor-pointer'
+        }`}
+        style={{
+          left: `${cartPosition.x}px`,
+          top: `${cartPosition.y}px`,
+          touchAction: 'none',
+        }}
+        aria-label="Savat"
+      >
+        <div className="relative">
+          <CartIcon className="w-6 h-6" />
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {cartCount > 9 ? '9+' : cartCount}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Animation Elements */}
+      {animations.map((anim) => (
+        <div
+          key={anim.id}
+          className="fixed z-[100] pointer-events-none animate-fly-to-cart"
+          style={{
+            left: `${anim.startX}px`,
+            top: `${anim.startY}px`,
+            '--end-x': `${anim.endX - anim.startX}px`,
+            '--end-y': `${anim.endY - anim.startY}px`,
+          }}
+        >
+          {anim.photo ? (
+            <img
+              src={`https://hosilbek.pythonanywhere.com${anim.photo}`}
+              alt="Product"
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          ) : (
+            <CartIcon className="w-8 h-8 text-[#FF6200]" />
+          )}
+        </div>
+      ))}
     </div>
   );
 };

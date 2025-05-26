@@ -14,3 +14,26 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+
+@layer utilities {
+  /* Flying animation for the product */
+  .animate-fly-to-cart {
+    animation: fly-to-cart 1.5s ease-in-out forwards;
+  }
+
+  @keyframes fly-to-cart {
+    0% {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: translate(calc(var(--end-x) / 2), calc(var(--end-y) / 2 - 50px)) scale(1.2);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translate(var(--end-x), var(--end-y)) scale(0.5);
+      opacity: 0;
+    }
+  }
+}
