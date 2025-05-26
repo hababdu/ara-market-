@@ -3,11 +3,11 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import {
   ShoppingCart as CartIcon,
   Home as HomeIcon,
-  Menu as MenuIcon,
   Person as PersonIcon,
-  ListAlt as OrdersIcon,
+  ListAlt as OrdersIcon, // Correct icon
   LocalOffer as PromoIcon,
-  Close as CloseIcon
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const Layout = () => {
@@ -53,136 +53,56 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-blue-600 shadow-lg' : 'bg-blue-600'}`}>
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex justify-between items-center">
-            {/* Logo va mobil menyu tugmasi */}
-            <div className="flex items-center">
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden text-white mr-4"
-                aria-label="Menyu"
-              >
-                {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-              </button>
-              <h1
-                className="text-xl font-bold text-white cursor-pointer flex items-center"
-                onClick={() => handleNavigate('/')}
-              >
-                <HomeIcon className="mr-2" />
-                <span className="hidden sm:inline">Ara Kafe</span>
-              </h1>
-            </div>
-
-            {/* Desktop navigatsiya */}
-            <nav className="hidden md:flex items-center gap-4">
-              <button onClick={() => handleNavigate('/profile')} className="text-white hover:text-blue-200 flex items-center">
-                <PersonIcon className="mr-1" />
-                <span>Profil</span>
-              </button>
-              <button onClick={() => handleNavigate('/orders')} className="text-white hover:text-blue-200 flex items-center">
-                <OrdersIcon className="mr-1" />
-                <span>Buyurtmalar</span>
-              </button>
-              <button onClick={() => handleNavigate('/status')} className="text-white hover:text-blue-200 flex items-center">
-                <OrdersIcon className="mr-1" />
-                <span>Statuslar</span>
-              </button>
-              <button onClick={() => handleNavigate('/promotions')} className="text-white hover:text-blue-200 flex items-center">
-                <PromoIcon className="mr-1" />
-                <span>Aksiyalar</span>
-              </button>
-              <button
-                onClick={() => handleNavigate('/cart')}
-                className="relative text-white hover:text-blue-200 flex items-center"
-              >
-                <CartIcon className="w-6 h-6" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </span>
-                )}
-              </button>
-            </nav>
-
-            {/* Mobil savat tugmasi */}
-            <button
-              onClick={() => handleNavigate('/cart')}
-              className="md:hidden relative text-white"
-              aria-label="Savat"
-            >
-              <CartIcon className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobil menyu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-blue-700 px-4 py-3">
-            <nav className="flex flex-col space-y-3">
-              <button 
-                onClick={() => handleNavigate('/profile')} 
-                className="text-white hover:text-blue-200 flex items-center py-2"
-              >
-                <PersonIcon className="mr-3" />
-                Profil
-              </button>
-              <button 
-                onClick={() => handleNavigate('/orders')} 
-                className="text-white hover:text-blue-200 flex items-center py-2"
-              >
-                <OrdersIcon className="mr-3" />
-                Buyurtmalar
-              </button>
-              <button 
-                onClick={() => handleNavigate('/status')} 
-                className="text-white hover:text-blue-200 flex items-center py-2"
-              >
-                <OrdersIcon className="mr-3" />
-                Statuslar
-              </button>
-              <button 
-                onClick={() => handleNavigate('/promotions')} 
-                className="text-white hover:text-blue-200 flex items-center py-2"
-              >
-                <PromoIcon className="mr-3" />
-                Aksiyalar
-              </button>
-              <button 
-                onClick={() => handleNavigate('/')} 
-                className="text-white hover:text-blue-200 flex items-center py-2"
-              >
-                <HomeIcon className="mr-3" />
-                Bosh sahifa
-              </button>
-            </nav>
-          </div>
-        )}
-      </header>
-
+    <div className="min-h-screen bg-[#FFF3E0] flex flex-col">
       {/* Asosiy kontent */}
-      <main className="flex-1 container mx-auto py-6 px-4 mt-16 md:mt-20">
+      <main className="flex-1 container mx-auto md:mt-20 mb-16">
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white py-4 text-center">
-        <div className="container mx-auto px-4">
-          <p className="text-sm">&copy; {new Date().getFullYear()} Ara Kafe. Barcha huquqlar himoyalangan.</p>
-          <div className="flex justify-center space-x-6 mt-3">
-            <button className="text-sm hover:text-blue-300">Foydalanish shartlari</button>
-            <button className="text-sm hover:text-blue-300">Maxfiylik siyosati</button>
-            <button className="text-sm hover:text-blue-300">Biz bilan bog'lanish</button>
-          </div>
-        </div>
-      </footer>
+      {/* Mobil pastki navigatsiya (faqat ikonalar) */}
+      <nav className="fixed bottom-0 w-full bg-[#FF6200] text-white md:hidden flex justify-around items-center py-2 z-50">
+        <button
+          onClick={() => handleNavigate('/')}
+          className="flex flex-col items-center"
+          aria-label="Bosh sahifa"
+        >
+          <HomeIcon />
+        </button>
+        <button
+          onClick={() => handleNavigate('/profile')}
+          className="flex flex-col items-center"
+          aria-label="Profil"
+        >
+          <PersonIcon />
+        </button>
+        <button
+          onClick={() => handleNavigate('/status')}
+          className="flex flex-col items-center"
+          aria-label="Faol buyurtmalar"
+        >
+          <OrdersIcon /> {/* Use OrdersIcon instead of ListAltIcon */}
+        </button>
+        <button
+          onClick={() => handleNavigate('/orders')}
+          className="flex flex-col items-center"
+          aria-label="Buyurtmalar"
+        >
+          <OrdersIcon />
+        </button>
+       
+        <button
+          onClick={() => handleNavigate('/cart')}
+          className="relative flex flex-col items-center"
+          aria-label="Savat"
+        >
+          <CartIcon className="w-6 h-6" />
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {cartCount > 9 ? '9+' : cartCount}
+            </span>
+          )}
+        </button>
+      </nav>
     </div>
   );
 };

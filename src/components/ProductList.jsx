@@ -1,29 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
   Fastfood as FastfoodIcon,
   LocalDining as KitchenIcon,
-  Category as CategoryIcon,
   AttachMoney as PriceIcon,
-  Discount as DiscountIcon,
-  Star as StarIcon,
-  StarBorder as StarEmptyIcon,
-  StarHalf as StarHalfIcon,
+  LocalOffer as DiscountIcon,
   Refresh as RefreshIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
   Close as CloseIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  ShoppingBasket as BasketIcon,
-  Timer as TimerIcon,
-  TrendingUp as PopularIcon,
-  NewReleases as NewIcon,
-  LocalOffer as OfferIcon,
+  ShoppingCart as CartIcon,
 } from '@mui/icons-material';
 
-// Mahsulotlarni tasodifiy tartiblash funksiyasi
+// Shuffle function for products
 const shuffleArray = (array) => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -41,18 +31,11 @@ const ProductsList = () => {
   const [search, setSearch] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [expandedFilters, setExpandedFilters] = useState({
-    price: false,
-    category: false,
-    kitchen: false,
-    features: false,
-  });
-
-  // Filtrlash holatlari
-  const [priceRange, setPriceRange] = useState([0, 100000]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedKitchens, setSelectedKitchens] = useState([]);
-  const [selectedFeatures, setSelectedFeatures] = useState([]);
+  const [selectedKitchen, setSelectedKitchen] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [cartCount, setCartCount] = useState(0);
+  const [inCart, setInCart] = useState(false);
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
 
@@ -62,26 +45,10 @@ const ProductsList = () => {
       setError(null);
       const response = await axios.get(API_URL);
       let productsData = Array.isArray(response.data) ? response.data : [];
-      
-      // Mahsulotlarni tasodifiy tartibda joylashtirish
       productsData = shuffleArray(productsData);
-      
       setProducts(productsData);
-      
-      // Filtrlarni boshlang'ich holatga keltirish
-      if (productsData.length > 0) {
-        const categories = [...new Set(productsData.map(p => p.category?.name).filter(Boolean))];
-        const kitchens = [...new Set(productsData.map(p => p.kitchen?.name).filter(Boolean))];
-        setSelectedCategories(categories);
-        setSelectedKitchens(kitchens);
-        
-        // Narx oralig'ini hisoblash
-        const prices = productsData.map(p => parseFloat(p.price));
-        setPriceRange([Math.min(...prices), Math.max(...prices)]);
-      }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
-      setError(errorMessage);
+      setError(err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi");
       setProducts([]);
     } finally {
       setLoading(false);
@@ -92,137 +59,90 @@ const ProductsList = () => {
     fetchProducts();
   }, []);
 
-  // Filtrlarni qo'llash
+  // Filter products based on selected kitchen and search
   useEffect(() => {
     let result = [...products];
-    
-    // Qidiruv filtri
+    if (selectedKitchen) {
+      result = result.filter((product) => product.kitchen?.name === selectedKitchen);
+    }
     if (search) {
-      result = result.filter(product => 
-        product.title?.toLowerCase().includes(search.toLowerCase()) ||
-        product.description?.toLowerCase().includes(search.toLowerCase())
+      result = result.filter(
+        (product) =>
+          product.title?.toLowerCase().includes(search.toLowerCase()) ||
+          product.description?.toLowerCase().includes(search.toLowerCase())
       );
     }
-    
-    // Narx oralig'i filtri
-    result = result.filter(product => {
-      const price = parseFloat(product.price);
-      return price >= priceRange[0] && price <= priceRange[1];
-    });
-    
-    // Kategoriya filtri
-    if (selectedCategories.length > 0) {
-      result = result.filter(product => 
-        selectedCategories.includes(product.category?.name)
-      );
-    }
-    
-    // Oshxona filtri
-    if (selectedKitchens.length > 0) {
-      result = result.filter(product => 
-        selectedKitchens.includes(product.kitchen?.name)
-      );
-    }
-    
-    // Xususiyatlar filtri
-    if (selectedFeatures.includes('discount')) {
-      result = result.filter(product => parseFloat(product.discount) > 0);
-    }
-    if (selectedFeatures.includes('popular')) {
-      result = result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
-    if (selectedFeatures.includes('new')) {
-      result = result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
-    
     setFilteredProducts(result);
-  }, [search, priceRange, selectedCategories, selectedKitchens, selectedFeatures, products]);
+  }, [search, selectedKitchen, products]);
 
-  // Filtr bo'limlarini yopish/ochish
-  const toggleFilterSection = (section) => {
-    setExpandedFilters(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+  // Update cart data
+  const updateCartData = useCallback(() => {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    setCartCount(totalItems);
+    const cartItem = cart.find((item) => item.id === selectedProduct?.id);
+    setInCart(!!cartItem);
+  }, [selectedProduct]);
 
-  // Kategoriyani tanlash/olib tashlash
-  const toggleCategory = (category) => {
-    setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
+  useEffect(() => {
+    updateCartData();
+    window.addEventListener('storage', updateCartData);
+    return () => window.removeEventListener('storage', updateCartData);
+  }, [updateCartData]);
 
-  // Oshxonani tanlash/olib tashlash
-  const toggleKitchen = (kitchen) => {
-    setSelectedKitchens(prev =>
-      prev.includes(kitchen)
-        ? prev.filter(k => k !== kitchen)
-        : [...prev, kitchen]
-    );
-  };
-
-  // Xususiyatni tanlash/olib tashlash
-  const toggleFeature = (feature) => {
-    setSelectedFeatures(prev =>
-      prev.includes(feature)
-        ? prev.filter(f => f !== feature)
-        : [feature] // Bir vaqtning o'zida faqat bitta xususiyatni tanlash
-    );
-  };
-
-  // Filtrlarni tozalash
+  // Reset filters
   const resetFilters = () => {
     setSearch('');
-    setPriceRange([0, 100000]);
-    const categories = [...new Set(products.map(p => p.category?.name).filter(Boolean))];
-    const kitchens = [...new Set(products.map(p => p.kitchen?.name).filter(Boolean))];
-    setSelectedCategories(categories);
-    setSelectedKitchens(kitchens);
-    setSelectedFeatures([]);
+    setSelectedKitchen(null);
   };
 
-  // Baholarni ko'rsatish
-  const renderRating = (rating) => {
-    const stars = [];
-    const maxStars = 5;
-    const roundedRating = Math.round(rating * 2) / 2;
+  // Get unique kitchens
+  const uniqueKitchens = useMemo(
+    () => [...new Set(products.map((p) => p.kitchen?.name).filter(Boolean))],
+    [products]
+  );
 
-    for (let i = 1; i <= maxStars; i++) {
-      if (i <= roundedRating) {
-        stars.push(<StarIcon key={i} className="text-yellow-500 w-3 h-3" />);
-      } else if (i - 0.5 === roundedRating) {
-        stars.push(<StarHalfIcon key={i} className="text-yellow-500 w-3 h-3" />);
-      } else {
-        stars.push(<StarEmptyIcon key={i} className="text-yellow-500 w-3 h-3" />);
-      }
+  // Add to cart
+  const addToCart = useCallback(() => {
+    if (!selectedProduct) return;
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const existing = cart.find((item) => item.id === selectedProduct.id);
+
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      const cartItemId = crypto.randomUUID();
+      cart.push({
+        id: selectedProduct.id,
+        cartItemId,
+        kitchen_id: selectedProduct.kitchen?.id,
+        product_id: selectedProduct.id,
+        title: selectedProduct.title,
+        price: selectedProduct.discounted_price || selectedProduct.price,
+        original_price: selectedProduct.price,
+        quantity: quantity,
+        photo: selectedProduct.photo,
+        user_id: userData.id,
+        kitchen_location: {
+          latitude: selectedProduct.kitchen?.latitude,
+          longitude: selectedProduct.kitchen?.longitude,
+        },
+      });
     }
 
-    return (
-      <div className="flex items-center">
-        {stars}
-        <span className="text-gray-500 text-xs ml-1">({rating.toFixed(1)})</span>
-      </div>
-    );
-  };
-
-  // Nozik hisoblashlar
-  const uniqueCategories = useMemo(() => [...new Set(products.map(p => p.category?.name).filter(Boolean))], [products]);
-  const uniqueKitchens = useMemo(() => [...new Set(products.map(p => p.kitchen?.name).filter(Boolean))], [products]);
-  const features = [
-    { id: 'discount', label: 'Chegirmalar', icon: <DiscountIcon className="w-4 h-4" /> },
-    { id: 'popular', label: 'Mashhurlar', icon: <PopularIcon className="w-4 h-4" /> },
-    { id: 'new', label: 'Yangi mahsulotlar', icon: <NewIcon className="w-4 h-4" /> },
-  ];
+    localStorage.setItem('cart', JSON.stringify(cart));
+    window.dispatchEvent(new Event('storage'));
+    setInCart(true);
+    setSelectedProduct(null); // Modalni yopish
+  }, [selectedProduct, quantity]);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="bg-white shadow-md rounded-lg px-6 py-4 flex items-center gap-3">
-          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-500"></div>
-          <p className="text-blue-600 font-medium">Mahsulotlar yuklanmoqda...</p>
+      <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0]">
+        <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#FF6200]"></div>
+          <p className="text-[#FF6200] font-medium text-sm">Mahsulotlar yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -230,14 +150,14 @@ const ProductsList = () => {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg max-w-md mx-4">
-          <p>{error}</p>
+      <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-4">
+        <div className="bg-[#ffebee] border-l-4 border-[#FF6200] text-[#FF6200] p-3 rounded-lg">
+          <p className="text-sm">{error}</p>
           <button
             onClick={fetchProducts}
-            className="mt-2 text-red-700 hover:text-red-900 font-medium flex items-center"
+            className="mt-2 text-[#FF6200] hover:text-[#FFAB40] font-medium flex items-center text-sm"
           >
-            <RefreshIcon className="mr-1" />
+            <RefreshIcon className="w-4 h-4 mr-1" />
             Qayta urinish
           </button>
         </div>
@@ -246,450 +166,307 @@ const ProductsList = () => {
   }
 
   return (
-    <div className="container mx-auto py-4 px-2 sm:px-4">
-      {/* Mobil qurilmalar uchun sarlavha */}
-      <div className="sm:hidden mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <h1 className="text-xl font-bold text-blue-600 flex items-center">
-            <BasketIcon className="mr-2" />
-            Mahsulotlar ({filteredProducts.length})
-          </h1>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-              className="p-2 rounded-full bg-blue-100 text-blue-600"
-            >
-              {mobileSearchOpen ? <CloseIcon /> : <SearchIcon />}
-            </button>
-            <button 
-              onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-              className="p-2 rounded-full bg-blue-100 text-blue-600"
-            >
-              {mobileFilterOpen ? <CloseIcon /> : <FilterIcon />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobil qidiruv */}
-        {mobileSearchOpen && (
-          <div className="relative mb-2">
-            <input
-              type="text"
-              placeholder="Mahsulot qidirish..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <SearchIcon className="absolute left-3 top-3 text-gray-400" />
-          </div>
-        )}
-
-        {/* Mobil filtrlash */}
-        {mobileFilterOpen && (
-          <div className="bg-white p-3 rounded-lg shadow-md mb-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium flex items-center">
-                <FilterIcon className="mr-1" />
-                Filtrlash
-              </h3>
-              <button 
-                onClick={resetFilters}
-                className="text-blue-600 text-sm flex items-center"
+    <div className="min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-2 py-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Mobile Header */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <h1 className="text-lg font-bold text-[#FF6200] flex items-center">
+              <FastfoodIcon className="w-5 h-5 mr-2" />
+              Mahsulotlar ({filteredProducts.length})
+            </h1>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+                className="p-2 rounded-full bg-[#FF6200] text-white"
+                aria-label={mobileSearchOpen ? 'Qidiruvni yopish' : 'Qidiruvni ochish'}
               >
-                <RefreshIcon className="mr-1 w-4 h-4" />
-                Tozalash
+                {mobileSearchOpen ? <CloseIcon className="w-5 h-5" /> : <SearchIcon className="w-5 h-5" />}
               </button>
-            </div>
-
-            {/* Narx filtri */}
-            <div className="mb-3 border-b pb-2">
-              <button 
-                className="flex justify-between items-center w-full"
-                onClick={() => toggleFilterSection('price')}
+              <button
+                onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
+                className="p-2 rounded-full bg-[#FF6200] text-white"
+                aria-label={mobileFilterOpen ? 'Filtrlarni yopish' : 'Filtrlarni ochish'}
               >
-                <span className="font-medium flex items-center">
-                  <PriceIcon className="mr-1 w-4 h-4" />
-                  Narx oralig'i
-                </span>
-                {expandedFilters.price ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                {mobileFilterOpen ? <CloseIcon className="w-5 h-5" /> : <FilterIcon className="w-5 h-5" />}
               </button>
-              
-              {expandedFilters.price && (
-                <div className="mt-2 px-1">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>{priceRange[0].toLocaleString()} so'm</span>
-                    <span>{priceRange[1].toLocaleString()} so'm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100000"
-                    step="1000"
-                    value={priceRange[0]}
-                    onChange={(e) => setPriceRange([parseInt(e.target.value), priceRange[1]])}
-                    className="w-full mb-2"
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="100000"
-                    step="1000"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Kategoriya filtri */}
-            <div className="mb-3 border-b pb-2">
-              <button 
-                className="flex justify-between items-center w-full"
-                onClick={() => toggleFilterSection('category')}
-              >
-                <span className="font-medium flex items-center">
-                  <CategoryIcon className="mr-1 w-4 h-4" />
-                  Kategoriyalar
-                </span>
-                {expandedFilters.category ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </button>
-              
-              {expandedFilters.category && (
-                <div className="mt-2 space-y-1">
-                  {uniqueCategories.map(category => (
-                    <label key={category} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(category)}
-                        onChange={() => toggleCategory(category)}
-                        className="rounded text-blue-600"
-                      />
-                      <span>{category}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Oshxona filtri */}
-            <div className="mb-3 border-b pb-2">
-              <button 
-                className="flex justify-between items-center w-full"
-                onClick={() => toggleFilterSection('kitchen')}
-              >
-                <span className="font-medium flex items-center">
-                  <KitchenIcon className="mr-1 w-4 h-4" />
-                  Oshxonalar
-                </span>
-                {expandedFilters.kitchen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </button>
-              
-              {expandedFilters.kitchen && (
-                <div className="mt-2 space-y-1">
-                  {uniqueKitchens.map(kitchen => (
-                    <label key={kitchen} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedKitchens.includes(kitchen)}
-                        onChange={() => toggleKitchen(kitchen)}
-                        className="rounded text-blue-600"
-                      />
-                      <span>{kitchen}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Xususiyatlar filtri */}
-            <div className="mb-2">
-              <button 
-                className="flex justify-between items-center w-full"
-                onClick={() => toggleFilterSection('features')}
-              >
-                <span className="font-medium flex items-center">
-                  <OfferIcon className="mr-1 w-4 h-4" />
-                  Xususiyatlar
-                </span>
-                {expandedFilters.features ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </button>
-              
-              {expandedFilters.features && (
-                <div className="mt-2 space-y-1">
-                  {features.map(feature => (
-                    <button
-                      key={feature.id}
-                      onClick={() => toggleFeature(feature.id)}
-                      className={`flex items-center space-x-2 w-full p-1 rounded ${selectedFeatures.includes(feature.id) ? 'bg-blue-100 text-blue-600' : ''}`}
-                    >
-                      {feature.icon}
-                      <span>{feature.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Desktop sarlavha */}
-      <div className="hidden sm:flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-blue-600 flex items-center">
-          <BasketIcon className="mr-2" />
-          Barcha mahsulotlar ({filteredProducts.length})
-        </h1>
-
-        <div className="flex flex-wrap gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Qidiruv..."
-              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <SearchIcon className="absolute left-3 top-3 text-gray-400" />
-          </div>
-
-          <button
-            onClick={fetchProducts}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-            disabled={loading}
-          >
-            <RefreshIcon className="mr-1" />
-            Yangilash
-          </button>
-        </div>
-      </div>
-
-      {/* Desktop filtrlari */}
-      <div className="hidden sm:block bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <h3 className="font-medium mb-2 flex items-center">
-              <PriceIcon className="mr-1 w-4 h-4" />
-              Narx oralig'i
-            </h3>
-            <div className="flex items-center gap-2">
+          {/* Mobile Search */}
+          {mobileSearchOpen && (
+            <div className="relative mb-3">
               <input
-                type="number"
-                min="0"
-                value={priceRange[0]}
-                onChange={(e) => setPriceRange([parseInt(e.target.value || 0), priceRange[1]])}
-                className="border rounded p-1 w-20 text-sm"
+                type="text"
+                placeholder="Mahsulot qidirish..."
+                className="w-full border border-[#FFAB40] rounded-lg px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] placeholder-gray-600"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Mahsulot qidirish"
               />
-              <span>-</span>
-              <input
-                type="number"
-                min="0"
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value || 0)])}
-                className="border rounded p-1 w-20 text-sm"
-              />
-              <span>so'm</span>
+              <SearchIcon className="w-5 h-5 absolute left-3 top-2.5 text-[#FFAB40]" />
             </div>
-          </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <h3 className="font-medium mb-2 flex items-center">
-              <CategoryIcon className="mr-1 w-4 h-4" />
-              Kategoriyalar
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {uniqueCategories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => toggleCategory(category)}
-                  className={`text-xs px-2 py-1 rounded-full flex items-center ${
-                    selectedCategories.includes(category)
-                      ? 'bg-blue-100 text-blue-600 border border-blue-300'
-                      : 'bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <h3 className="font-medium mb-2 flex items-center">
-              <KitchenIcon className="mr-1 w-4 h-4" />
-              Oshxonalar
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {uniqueKitchens.map(kitchen => (
-                <button
-                  key={kitchen}
-                  onClick={() => toggleKitchen(kitchen)}
-                  className={`text-xs px-2 py-1 rounded-full flex items-center ${
-                    selectedKitchens.includes(kitchen)
-                      ? 'bg-blue-100 text-blue-600 border border-blue-300'
-                      : 'bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  {kitchen}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <h3 className="font-medium mb-2 flex items-center">
-              <OfferIcon className="mr-1 w-4 h-4" />
-              Xususiyatlar
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {features.map(feature => (
-                <button
-                  key={feature.id}
-                  onClick={() => toggleFeature(feature.id)}
-                  className={`text-xs px-2 py-1 rounded-full flex items-center ${
-                    selectedFeatures.includes(feature.id)
-                      ? 'bg-blue-100 text-blue-600 border border-blue-300'
-                      : 'bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  {feature.icon}
-                  <span className="ml-1">{feature.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={resetFilters}
-            className="text-blue-600 text-sm flex items-center self-end"
-          >
-            <RefreshIcon className="mr-1 w-4 h-4" />
-            Filtrlarni tozalash
-          </button>
-        </div>
-      </div>
-
-      {filteredProducts.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">
-          {search ? (
-            <>
-              <SearchIcon className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-              <p className="text-lg">"{search}" bo‘yicha hech narsa topilmadi</p>
-            </>
-          ) : (
-            <>
-              <FastfoodIcon className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-              <p className="text-lg">Mahsulotlar topilmadi</p>
-            </>
           )}
-          <button 
-            onClick={resetFilters}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center mx-auto"
-          >
-            <RefreshIcon className="mr-1" />
-            Barcha filtrlarni tozalash
-          </button>
-        </div>
-      ) : (
-        // Mobil holatda 2 ta, desktop holatda 4 ta mahsulot bir qatorda
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredProducts.map((product) => (
-            <Link
-              to={`/products/${product.id}`}
-              key={product.id}
-              className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200 flex flex-col h-full group"
-            >
-              {/* Mahsulot rasmi */}
-              <div className="relative pt-[75%] overflow-hidden">
-                {product.photo ? (
-                  <img
-                    src={`https://hosilbek.pythonanywhere.com${product.photo}`}
-                    alt={product.title}
-                    className="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="absolute top-0 left-0 w-full h-full bg-gray-100 flex items-center justify-center">
-                    <FastfoodIcon className="text-gray-400 w-12 h-12" />
-                  </div>
-                )}
-                {parseFloat(product.discount) > 0 && (
-                  <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                    <DiscountIcon className="w-3 h-3 mr-1" />
-                    {Math.round((parseFloat(product.discount) / parseFloat(product.price)) * 100)}%
-                  </div>
-                )}
+
+          {/* Mobile Filters */}
+          {mobileFilterOpen && (
+            <div className="bg-white p-4 rounded-lg shadow-md mb-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium text-sm text-[#333] flex items-center">
+                  <FilterIcon className="w-4 h-4 mr-1" />
+                  Oshxonalar
+                </h3>
+                <button
+                  onClick={resetFilters}
+                  className="text-[#FF6200] text-xs flex items-center"
+                  aria-label="Filtrlarni tozalash"
+                >
+                  <RefreshIcon className="w-4 h-4 mr-1" />
+                  Tozalash
+                </button>
               </div>
+              <div className="space-y-2">
+                {uniqueKitchens.map((kitchen) => (
+                  <button
+                    key={kitchen}
+                    onClick={() => setSelectedKitchen(selectedKitchen === kitchen ? null : kitchen)}
+                    className={`w-full text-left p-2 rounded text-sm ${
+                      selectedKitchen === kitchen
+                        ? 'bg-[#FF6200] text-white'
+                        : 'bg-[#FFF3E0] text-[#333]'
+                    }`}
+                    aria-label={`Oshxona: ${kitchen}`}
+                  >
+                    {kitchen}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-              {/* Mahsulot ma'lumotlari */}
-              <div className="p-3 flex-grow flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-base truncate" title={product.title}>
-                    {product.title || 'Yangi mahsulot'}
-                  </h3>
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
-                    {product.unit}
-                  </span>
+        {/* Kitchens Carousel */}
+        <div className="overflow-x-auto whitespace-nowrap mb-4 pb-2">
+          <ul className="flex gap-2">
+            {uniqueKitchens.map((kitchen) => (
+              <li
+                key={kitchen}
+                className={`inline-block px-4 py-2 rounded-full cursor-pointer text-sm ${
+                  selectedKitchen === kitchen
+                    ? 'bg-[#FF6200] text-white'
+                    : 'bg-[#FFF3E0] text-[#333] border border-[#FFAB40]'
+                }`}
+                onClick={() => setSelectedKitchen(selectedKitchen === kitchen ? null : kitchen)}
+              >
+                {kitchen}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Products or Empty State */}
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-12 text-[#666] bg-white rounded-lg shadow-sm">
+            {search ? (
+              <>
+                <SearchIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
+                <p className="text-base">"{search}" bo‘yicha hech narsa topilmadi</p>
+              </>
+            ) : (
+              <>
+                <FastfoodIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
+                <p className="text-base">Mahsulotlar topilmadi</p>
+              </>
+            )}
+            <button
+              onClick={resetFilters}
+              className="mt-4 bg-[#FF6200] hover:bg-[#FFAB40] text-white px-4 py-2 rounded-lg flex items-center mx-auto text-sm"
+              aria-label="Barcha filtrlarni tozalash"
+            >
+              <RefreshIcon className="w-4 h-4 mr-1" />
+              Barcha filtrlarni tozalash
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {filteredProducts.map((product) => (
+              <div
+              style={{
+                background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0 , #FFF3E0)',
+              }}
+                key={product.id}
+                className=" rounded-lg shadow-sm overflow-hidden  hover:shadow-md transition-shadow duration-200 flex flex-col h-full cursor-pointer"
+                onClick={() => setSelectedProduct(product)}
+                aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
+              >
+                {/* Product Image */}
+                <div className="relative pt-[75%] overflow-hidden">
+                  {product.photo ? (
+                    <img
+                      src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+                      alt={product.title || 'Mahsulot rasmi'}
+                      className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute top-0 left-0 w-full h-full bg-[#FFF3E0] flex items-center justify-center">
+                      <FastfoodIcon className="w-12 h-12 text-[#FFAB40]" />
+                    </div>
+                  )}
+                  {parseFloat(product.discount) > 0 && (
+                    <div className="absolute top-2 right-2 bg-[#FF6200] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+                      <DiscountIcon className="w-3 h-3 mr-1" />
+                      {Math.round((parseFloat(product.discount) / parseFloat(product.price)) * 100)}%
+                    </div>
+                  )}
                 </div>
 
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2 flex-grow">
-                  {product.description || 'Tavsif mavjud emas'}
-                </p>
-
-                {/* Teglar */}
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {product.kitchen?.name && (
-                    <span className="flex items-center text-xs bg-gray-100 px-2 py-1 rounded">
-                      <KitchenIcon className="w-3 h-3 mr-1" />
-                      {product.kitchen.name}
+                {/* Product Details */}
+                <div   style={{
+        background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
+      }}  className="p-3 flex-grow  flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3
+                      className="font-semibold text-sm text-[#333] truncate"
+                      title={product.title}
+                    >
+                      {product.title || 'Yangi mahsulot'}
+                    </h3>
+                    <span className="bg-[#FFF3E0] text-[#FF6200] text-xs px-2 py-0.5 rounded-full">
+                      {product.unit}
                     </span>
-                  )}
-                  {product.category?.name && (
-                    <span className="flex items-center text-xs bg-gray-100 px-2 py-1 rounded">
-                      <CategoryIcon className="w-3 h-3 mr-1" />
-                      {product.category.name}
-                    </span>
-                  )}
-                </div>
-
-                {/* Narx va baho */}
-                <div className="mt-auto">
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center">
-                      <PriceIcon className="text-blue-500 w-4 h-4 mr-1" />
-                      <span className={`font-bold text-sm ${
-                        parseFloat(product.discount) > 0 ? 'line-through text-gray-400' : ''
-                      }`}>
+                  </div>
+                  <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
+                    {product.description || 'Tavsif mavjud emas'}
+                  </p>
+                 
+                  <div className="mt-auto">
+                    <div className="flex items-center mb-1">
+                      <PriceIcon className="w-4 h-4 mr-1 text-[#FF6200]" />
+                      <span
+                        className={`font-bold text-sm ${
+                          parseFloat(product.discount) > 0
+                            ? 'line-through text-[#666]'
+                            : 'text-[#333]'
+                        }`}
+                      >
                         {parseFloat(product.price).toLocaleString()} so'm
                       </span>
                     </div>
-                    
-                  </div>
-
-                  {parseFloat(product.discount) > 0 && (
-                    <p className="text-green-600 font-bold text-sm mb-2">
-                      {parseFloat(product.discounted_price).toLocaleString()} so'm
-                    </p>
-                  )}
-
-                  <div className="flex justify-between items-center">
-                    {renderRating(product.rating || 0)}
-                    {selectedFeatures.includes('popular') && (
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex items-center">
-                        <PopularIcon className="w-3 h-3 mr-1" />
-                        Mashhur
-                      </span>
-                    )}
-                    {selectedFeatures.includes('new') && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center">
-                        <NewIcon className="w-3 h-3 mr-1" />
-                        Yangi
-                      </span>
+                    {parseFloat(product.discount) > 0 && (
+                      <p className="text-[#FF6200] font-bold text-sm">
+                        {parseFloat(product.discounted_price).toLocaleString()} so'm
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
-            </Link>
-          ))}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Product Modal */}
+      {selectedProduct && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
+          onClick={() => setSelectedProduct(null)}
+        >
+          <div
+            className="bg-[#FFF3E0] w-full rounded-t-2xl p-4 h-[90%] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-[#FF6200]">{selectedProduct.title}</h2>
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="text-[#FF6200] hover:text-[#FFAB40]"
+                aria-label="Modalni yopish"
+              >
+                <CloseIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Product Image */}
+            <div className="relative mb-4">
+              {selectedProduct.photo ? (
+                <img
+                  src={`https://hosilbek.pythonanywhere.com${selectedProduct.photo}`}
+                  alt={selectedProduct.title || 'Mahsulot rasmi'}
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-48 bg-[#FFF3E0] flex items-center justify-center rounded-lg">
+                  <FastfoodIcon className="w-16 h-16 text-[#FFAB40]" />
+                </div>
+              )}
+            </div>
+
+            {/* Price */}
+            <div className="mb-4">
+              {selectedProduct.discounted_price ? (
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="text-lg font-bold text-[#FF6200]">
+                    {parseFloat(selectedProduct.discounted_price).toLocaleString('uz-UZ')} so'm
+                  </span>
+                  <span className="text-sm text-[#666] line-through">
+                    {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so'm
+                  </span>
+                  <span className="bg-[#FFF3E0] text-[#FF6200] text-xs font-semibold px-2 py-1 rounded-full">
+                    {Math.round(
+                      (1 - selectedProduct.discounted_price / selectedProduct.price) * 100
+                    )}% chegirma
+                  </span>
+                </div>
+              ) : (
+                <span className="text-lg font-bold text-[#333]">
+                  {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so'm
+                </span>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-[#333] mb-1">Tavsif</h3>
+              <p className="text-sm text-[#666] whitespace-pre-line">
+                {selectedProduct.description || 'Tavsif mavjud emas'}
+              </p>
+            </div>
+
+            
+
+            {/* Quantity Selector */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  disabled={quantity <= 1}
+                  className={`px-4 py-2 text-[#FF6200] text-lg ${
+                    quantity <= 1 ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  -
+                </button>
+                <span className="w-12 text-center text-lg text-[#333]">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((prev) => prev + 1)}
+                  className="px-4 py-2 text-[#FF6200] text-lg"
+                >
+                  +
+                </button>
+              </div>
+              {/* Add to Cart Button */}
+            <button
+              onClick={addToCart}
+              className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden p-2 "
+            >
+              <CartIcon className="w-5 h-5 mr-2" />
+              Savatga qo'shish
+            </button>
+            
+            </div>
+
+            
+          </div>
         </div>
       )}
     </div>

@@ -157,11 +157,10 @@ const Login = () => {
     <ThemeProvider theme={theme}>
       <Box
         sx={{
-          minHeight: '100vh',
+          minHeight: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: theme.palette.background.default,
         }}
       >
         <Container maxWidth="sm">
@@ -228,7 +227,7 @@ const Login = () => {
                     type="submit"
                     fullWidth
                     variant="contained"
-                    color="primary"
+                    color=""
                     sx={{ mt: 3, mb: 2, py: 1.5 }}
                     disabled={isLoading}
                   >

@@ -1,158 +1,96 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Box,
-  Typography,
-  CircularProgress,
-  Alert,
-  Stack,
-  Button,
-  Card,
-  CardContent,
-  Divider,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Grid,
-  TextField,
-  InputAdornment,
-  IconButton,
-  Collapse,
-  useMediaQuery,
-  ThemeProvider,
-  createTheme,
-  Stepper,
-  Step,
-  StepLabel,
-  Paper,
-} from '@mui/material';
-import {
-  Refresh,
+  AccessTime,
+  Cancel,
   CheckCircle,
   LocalShipping,
-  Restaurant,
-  Payment,
   LocationOn,
   Phone,
-  AccessTime,
+  Payment,
+  Person as PersonIcon,
+  Restaurant,
+  Search,
+  Close as CloseIcon,
   ExpandMore,
   ExpandLess,
-  Search,
-  Cancel,
-  Person as PersonIcon,
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 
 const ACTIVE_ORDERS_API = 'https://hosilbek.pythonanywhere.com/api/user/active-orders/';
 const BASE_URL = 'https://hosilbek.pythonanywhere.com';
 
-const theme = createTheme({
-  palette: {
-    primary: { main: '#1976d2' }, // buyurtma_tushdi
-    secondary: { main: '#7b1fa2' }, // kuryer_oldi
-    warning: { main: '#f57c00' }, // kuryer_yolda
-    success: { main: '#388e3c' }, // buyurtma_topshirildi
-    info: { main: '#0288d1' }, // oshxona_vaqt_belgiladi
-    error: { main: '#d32f2f' }, // qaytarildi
-    background: { default: '#f5f7fa' },
-  },
-  typography: {
-    subtitle1: { fontSize: '1rem', fontWeight: 600 },
-    subtitle2: { fontSize: '0.875rem', fontWeight: 600 },
-    body2: { fontSize: '0.75rem' },
-    caption: { fontSize: '0.6875rem' },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-          '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: { borderRadius: 8, textTransform: 'none', fontWeight: 500, minHeight: 40 },
-        sizeSmall: { fontSize: '0.75rem', padding: '6px 10px' },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: { fontSize: '0.6875rem', height: 24, fontWeight: 500 },
-      },
-    },
-    MuiStepLabel: {
-      styleOverrides: {
-        label: { fontSize: '0.6875rem', fontWeight: 500 },
-      },
-    },
-    MuiStepIcon: {
-      styleOverrides: {
-        root: { fontSize: '1rem' },
-      },
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: { fontSize: '0.75rem', padding: '6px 12px' },
-      },
-    },
-  },
-});
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-600">
+            Xatolik yuz berdi: {this.state.error?.message || 'Noma\'lum xatolik'}
+          </h2>
+          <p className="mt-4 text-gray-600">Iltimos, sahifani yangilang yoki qayta urinib ko‘ring.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const ActiveOrdersDashboard = () => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [lastFetch, setLastFetch] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedOrder, setExpandedOrder] = useState(null);
+  const [modalState, setModalState] = useState({ type: null, order: null });
   const token = localStorage.getItem('authToken');
 
   const statusMap = useMemo(
     () => ({
       buyurtma_tushdi: {
         label: 'Yangi',
-        color: 'primary',
+        color: '#1976d2',
         icon: <AccessTime fontSize="small" />,
         message: 'Buyurtma qabul qilindi!',
       },
       oshxona_vaqt_belgiladi: {
         label: 'Tayyorlanmoqda',
-        color: 'info',
+        color: '#0288d1',
         icon: <AccessTime fontSize="small" />,
         message: 'Oshxonada tayyorlanmoqda.',
       },
       kuryer_oldi: {
         label: 'Kuryer oldi',
-        color: 'secondary',
+        color: '#7b1fa2',
         icon: <CheckCircle fontSize="small" />,
         message: 'Kuryer buyurtmani oldi.',
       },
       kuryer_yolda: {
         label: 'Yetkazilmoqda',
-        color: 'warning',
+        color: '#f57c00',
         icon: <LocalShipping fontSize="small" />,
         message: 'Buyurtma yetkazilmoqda!',
       },
       buyurtma_topshirildi: {
         label: 'Yetkazildi',
-        color: 'success',
+        color: '#388e3c',
         icon: <CheckCircle fontSize="small" />,
         message: 'Buyurtma yetkazildi. Rahmat!',
       },
       qaytarildi: {
         label: 'Qaytarildi',
-        color: 'error',
+        color: '#d32f2f',
         icon: <Cancel fontSize="small" />,
         message: 'Buyurtma qaytarildi.',
       },
@@ -178,7 +116,6 @@ const ActiveOrdersDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(Array.isArray(response.data) ? response.data : []);
-      console.log('Fetched orders:', response.data);
       setLastFetch(new Date().toISOString());
     } catch (err) {
       let errorMessage = 'Buyurtmalarni olishda xato';
@@ -228,7 +165,7 @@ const ActiveOrdersDashboard = () => {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 60000); // Poll every 60 seconds
+    const interval = setInterval(fetchOrders, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -238,19 +175,18 @@ const ActiveOrdersDashboard = () => {
   const getStatusChip = (status) => {
     const config = statusMap[status] || {
       label: status,
-      color: 'default',
+      color: '#6b7280',
       icon: null,
       message: 'Holati noma’lum',
     };
     return (
-      <Chip
-        label={config.label}
-        color={config.color}
-        icon={config.icon}
-        size="small"
-        variant="filled"
-        sx={{ fontWeight: 500, borderRadius: '6px' }}
-      />
+      <span
+        className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold border"
+        style={{ color: config.color, borderColor: config.color }}
+      >
+        {config.icon}
+        {config.label}
+      </span>
     );
   };
 
@@ -258,22 +194,10 @@ const ActiveOrdersDashboard = () => {
     statusMap[status]?.message || 'Holati noma’lum';
 
   const getStatusColor = (status) =>
-    theme.palette[statusMap[status]?.color]?.main || theme.palette.grey[500];
-
-  const getTimelineStep = (status) => {
-    const steps = [
-      'buyurtma_tushdi',
-      'oshxona_vaqt_belgiladi',
-      'kuryer_oldi',
-      'kuryer_yolda',
-      'buyurtma_topshirildi',
-    ];
-    const index = steps.indexOf(status);
-    return index >= 0 ? index : status === 'qaytarildi' ? -1 : steps.length - 1;
-  };
+    statusMap[status]?.color || '#6b7280';
 
   const formatTime = (kitchenTime) => {
-    if (!kitchenTime) return 'Noma’lum';
+    if (!kitchenTime) return 'Noma’ Justine';
     if (typeof kitchenTime === 'string' && kitchenTime.includes(':')) {
       const [hours, minutes] = kitchenTime.split(':').map(Number);
       return `${hours > 0 ? `${hours} soat ` : ''}${minutes > 0 ? `${minutes} min` : ''}`.trim();
@@ -301,305 +225,353 @@ const ActiveOrdersDashboard = () => {
     return orders.filter((order) => order.id.toString().includes(searchQuery));
   }, [orders, searchQuery]);
 
+  const handleOpenModal = (type, order = null) => {
+    setModalState({ type, order });
+  };
+
+  const handleCloseModal = () => {
+    setModalState({ type: null, order: null });
+  };
+
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setError('');
+    setSuccess('');
+  };
+
   if (loading && orders.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-        <CircularProgress size={48} thickness={4} />
-      </Box>
+      <ErrorBoundary>
+        <div className="min-h-screen flex items-center justify-center bg-[#FFF3E0]">
+          <div className="text-center">
+            <svg
+              className="animate-spin h-12 w-12 text-[#FF6200] mx-auto"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8h-8z"
+              />
+            </svg>
+            <h2 className="mt-4 text-xl text-gray-600">Buyurtmalar yuklanmoqda...</h2>
+          </div>
+        </div>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ p: isMobile ? 1.5 : 3, bgcolor: 'background.default', minHeight: '100vh' }}>
-        {/* Header */}
-        <Stack direction="column" spacing={1.5} mb={3}>
-          <Typography variant={isMobile ? 'subtitle1' : 'h5'} fontWeight="bold" color="primary.main">
-            Buyurtmalar
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Buyurtma holatini kuzating yoki ID bo‘yicha qidiring.
-          </Typography>
-          <Stack direction={isMobile ? 'column' : 'row'} spacing={1.5} sx={{ mt: 1.5 }}>
-            <TextField
-              size="small"
-              placeholder="Buyurtma ID"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ width: isMobile ? '100%' : 250, bgcolor: 'white', borderRadius: 2 }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<Refresh fontSize="small" />}
-              onClick={fetchOrders}
-              size="small"
-              sx={{ minHeight: 40, borderRadius: 2 }}
-            >
-              Yangilash
-            </Button>
-          </Stack>
-        </Stack>
-
-        {/* Alerts */}
-        {error && (
-          <Alert
-            severity="error"
-            sx={{ mb: 2, borderRadius: 2 }}
-            onClose={() => setError('')}
-            action={
-              error === 'Internet yo‘q' ? (
-                <Button color="error" size="small" onClick={fetchOrders}>
-                  Qayta
-                </Button>
-              ) : null
-            }
+    <ErrorBoundary>
+      <div className=" bg-[#FFF3E0] pb-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert
-            severity="success"
-            sx={{ mb: 2, borderRadius: 2 }}
-            onClose={() => setSuccess('')}
-          >
-            {success}
-          </Alert>
-        )}
+            {/* Header */}
+            <div className="mt-16 sm:mt-20">
+              <h1 className="text-2xl font-bold text-[#FF6200]">Buyurtmalar</h1>
+              <p className="mt-2 text-gray-600 text-sm">
+                Buyurtma holatini kuzating yoki ID bo‘yicha qidiring.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute top-3 left-3 text-gray-500" fontSize="small" />
+                  <input
+                    type="text"
+                    placeholder="Buyurtma ID"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
+                    aria-label="Buyurtma ID bo‘yicha qidirish"
+                  />
+                </div>
+                <button
+                  className="bg-[#FF6200] text-white px-6 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center"
+                  onClick={fetchOrders}
+                >
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h5m11 0V4h-5m0 5h5m-5 5v5h5m-5 0h-5m0-5H4"
+                    />
+                  </svg>
+                  Yangilash
+                </button>
+              </div>
+            </div>
 
-          <Box>
-            {filteredOrders.length === 0 ? (
-              <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'white' }}>
-                <Typography variant="body2" color="text.secondary" mb={1.5}>
-            Faol buyurtma yo‘q
-                </Typography>
-                <Button
-            variant="contained"
-            size="small"
-            onClick={() => navigate('/')}
-            sx={{ minHeight: 40, borderRadius: 2 }}
-                >
-            Buyurtma berish
-                </Button>
-              </Paper>
-            ) : (
-              <Grid container spacing={isMobile ? 1.5 : 2}>
-                {filteredOrders.map((order) => (
-            <Grid item xs={12} key={order.id}>
-              <Card sx={{ borderLeft: `3px solid ${getStatusColor(order.status)}`, bgcolor: 'white' }}>
-                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-              <Typography variant="subtitle2" fontWeight="bold">
-                Buyurtma #{order.id}
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {getStatusChip(order.status)}
-                <IconButton
-                  onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                  size="small"
-                >
-                  {expandedOrder === order.id ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                </IconButton>
-              </Stack>
-                  </Stack>
-                  <Stack spacing={1} mb={1.5}>
-              <Typography variant="body2" fontWeight="medium">
-                {getStatusMessage(order.status)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {getEstimatedDelivery(order.kitchen_time, order.created_at)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
-              </Typography>
-              <Stepper
-                activeStep={getTimelineStep(order.status)}
-                alternativeLabel
-                sx={{ mt: 1.5 }}
-              >
-                {[
-                  { label: 'Yangi', status: 'buyurtma_tushdi' },
-                  { label: 'Tayyor', status: 'oshxona_vaqt_belgiladi' },
-                  { label: 'Kuryer', status: 'kuryer_oldi' },
-                  { label: 'Yo‘lda', status: 'kuryer_yolda' },
-                  { label: 'Yetkazildi', status: 'buyurtma_topshirildi' },
-                ].map((step, index) => (
-                  <Step key={index}>
-                    <StepLabel
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    color:
-                      getTimelineStep(order.status) >= index
-                  ? getStatusColor(step.status)
-                  : 'text.secondary',
-                    fontWeight: getTimelineStep(order.status) >= index ? 500 : 400,
-                  },
-                }}
+            {/* Orders List */}
+            <div className="mt-6">
+              {filteredOrders.length === 0 ? (
+                <div className="bg-white rounded-2xl shadow-xl p-6 text-center">
+                  <p className="text-gray-600 mb-4">Faol buyurtma yo‘q</p>
+                  <button
+                    className="bg-[#FF6200] text-white px-6 py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform"
+                    onClick={() => navigate('/')}
+                  >
+                    Buyurtma berish
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredOrders.map((order) => (
+                    <motion.div
+                      key={order.id}
+                      className="bg-white rounded-2xl shadow-xl p-6 cursor-pointer"
+                      onClick={() => handleOpenModal('order', order)}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
                     >
-                {step.label}
-                    </StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
-              <Stack direction={isMobile ? 'column' : 'row'} spacing={1}>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Cancel fontSize="small" />}
-                  onClick={() => returnOrder(order.id)}
-                  disabled={isReturnDisabled(order.status)}
-                  size="small"
-                  sx={{ minHeight: 40, borderRadius: 2 }}
-                >
-                  Qaytarish
-                </Button>
-              </Stack>
-                  </Stack>
-                  <Collapse in={expandedOrder === order.id}>
-              <Box sx={{ mt: 2 }}>
-                <Divider sx={{ mb: 2 }} />
-                <Grid container spacing={isMobile ? 1.5 : 2}>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
-                Tafsilotlar
-                    </Typography>
-                    <Stack spacing={1}>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="caption">
-                    {order.contact_number || 'Noma’lum'}
-                  </Typography>
-                </Stack>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <LocationOn fontSize="small" color="action" />
-                  <Typography variant="caption">
-                    {order.shipping_address || 'Noma’lum'}
-                  </Typography>
-                </Stack>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Payment fontSize="small" color="action" />
-                  <Typography variant="caption">
-                    To‘lov:{' '}
-                    {order.payment === 'naqd'
-                      ? 'Naqd'
-                      : order.payment === 'karta'
-                      ? 'Karta'
-                      : 'Noma’lum'}
-                  </Typography>
-                </Stack>
-                {order.notes && (
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <Typography variant="caption">
-                      Izoh: {order.notes}
-                    </Typography>
-                  </Stack>
-                )}
-                {order.status === 'kuryer_oldi' && (
-                  <>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <PersonIcon fontSize="small" color="action" />
-                      <Typography variant="caption">
-                  Kuryer: {order.courier?.user.username || 'Ma’lumot mavjud emas'}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Phone fontSize="small" color="action" />
-                      {order.courier?.phone_number ? (
-                  <Typography
-                    variant="caption"
-                    component="a"
-                    href={`tel:${order.courier.phone_number}`}
-                    sx={{
-                      color: 'primary.main',
-                      textDecoration: 'none',
-                      '&:hover': { textDecoration: 'underline' },
-                    }}
-                    aria-label={`Call courier at ${order.courier.phone_number}`}
-                  >
-                    Kuryer telefoni: {order.courier.phone_number}
-                  </Typography>
-                      ) : (
-                  <Typography variant="caption">
-                    Kuryer telefoni: Ma’lumot mavjud emas
-                  </Typography>
-                      )}
-                    </Stack>
-                  </>
-                )}
-                    </Stack>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
-                Mahsulotlar ({order.items?.length || 0})
-                    </Typography>
-                    <List dense>
-                {order.items && order.items.length > 0 ? (
-                  order.items.map((item, index) => (
-                    <ListItem key={index} sx={{ py: 0.5 }}>
-                      <ListItemAvatar>
-                  <Avatar
-                    variant="rounded"
-                    src={
-                      item.product?.photo
-                        ? `${BASE_URL}${item.product.photo}`
-                        : undefined
-                    }
-                    sx={{ bgcolor: 'grey.200', width: 28, height: 28 }}
-                  >
-                    <Restaurant fontSize="small" />
-                  </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                  primary={item.product?.title || 'Noma’lum'}
-                  secondary={`${item.quantity} × ${item.price || 0} so‘m`}
-                  primaryTypographyProps={{ variant: 'caption' }}
-                  secondaryTypographyProps={{ variant: 'caption' }}
-                      />
-                      <Typography variant="caption" fontWeight="bold">
-                  {(item.quantity * parseFloat(item.price || 0)).toLocaleString(
-                    'uz-UZ'
-                  )}{' '}
-                  so‘m
-                      </Typography>
-                    </ListItem>
-                  ))
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    Mahsulot yo‘q
-                  </Typography>
-                )}
-                    </List>
-                  </Grid>
-                </Grid>
-              </Box>
-                  </Collapse>
-                </CardContent>
-              </Card>
-            </Grid>
-                ))}
-              </Grid>
-            )}
-          </Box>
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold text-gray-800">
+                          Buyurtma #{order.id}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          {getStatusChip(order.status)}
+                          <button
+                            className="text-[#FF6200] hover:text-[#FFAB40]"
+                            aria-label="Buyurtma tafsilotlarini ko‘rish"
+                          >
+                            {modalState.order?.id === order.id ? (
+                              <ExpandLess fontSize="small" />
+                            ) : (
+                              <ExpandMore fontSize="small" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        {getStatusMessage(order.status)}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {getEstimatedDelivery(order.kitchen_time, order.created_at)}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                      </p>
+                      <button
+                        className="mt-4 border border-[#FF6200] text-[#FF6200] px-4 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          returnOrder(order.id);
+                        }}
+                        disabled={isReturnDisabled(order.status)}
+                      >
+                        <Cancel className="mr-2" fontSize="small" />
+                        Qaytarish
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Last Fetch Time */}
-        {lastFetch && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mt: 2, display: 'block', textAlign: 'center' }}
+            {/* Last Fetch Time */}
+            {lastFetch && (
+              <p className="mt-4 text-center text-sm text-gray-500">
+                Yangilandi: {new Date(lastFetch).toLocaleString('uz-UZ')}
+              </p>
+            )}
+          </motion.div>
+        </div>
+
+        {/* Modal for Order Details */}
+        {modalState.type === 'order' && modalState.order && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
+            onClick={handleCloseModal}
           >
-            Yangilandi: {new Date(lastFetch).toLocaleString('uz-UZ')}
-          </Typography>
+            <div
+              className="bg-[#FFF3E0] w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 h-[90%] sm:h-auto overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-[#FF6200]">
+                  Buyurtma #{modalState.order.id}
+                </h2>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-[#FF6200] hover:text-[#FFAB40] transition-colors"
+                  aria-label="Modalni yopish"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Holati</p>
+                  <p className="text-sm text-gray-600">{getStatusMessage(modalState.order.status)}</p>
+                  {getStatusChip(modalState.order.status)}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Yetkazish vaqti</p>
+                  <p className="text-sm text-gray-600">
+                    {getEstimatedDelivery(modalState.order.kitchen_time, modalState.order.created_at)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Jami</p>
+                  <p className="text-sm text-gray-600">
+                    {parseFloat(modalState.order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                  </p>
+                </div>
+                <hr className="border-gray-300" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Tafsilotlar</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center">
+                      <Phone className="text-[#FF6200] mr-3" fontSize="small" />
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          {modalState.order.contact_number || 'Noma’lum'}
+                        </p>
+                      </div>
+                    </li>
+                    <li className="flex items-center">
+                      <LocationOn className="text-[#FF6200] mr-3" fontSize="small" />
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          {modalState.order.shipping_address || 'Noma’lum'}
+                        </p>
+                      </div>
+                    </li>
+                    <li className="flex items-center">
+                      <Payment className="text-[#FF6200] mr-3" fontSize="small" />
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          To‘lov:{' '}
+                          {modalState.order.payment === 'naqd'
+                            ? 'Naqd'
+                            : modalState.order.payment === 'karta'
+                            ? 'Karta'
+                            : 'Noma’lum'}
+                        </p>
+                      </div>
+                    </li>
+                    {modalState.order.notes && (
+                      <li className="flex items-center">
+                        <div>
+                          <p className="text-sm text-gray-600">Izoh: {modalState.order.notes}</p>
+                        </div>
+                      </li>
+                    )}
+                    {modalState.order.status === 'kuryer_oldi' && (
+                      <>
+                        <li className="flex items-center">
+                          <PersonIcon className="text-[#FF6200] mr-3" fontSize="small" />
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Kuryer: {modalState.order.courier?.user.username || 'Ma’lumot mavjud emas'}
+                            </p>
+                          </div>
+                        </li>
+                        <li className="flex items-center">
+                          <Phone className="text-[#FF6200] mr-3" fontSize="small" />
+                          <div>
+                            {modalState.order.courier?.phone_number ? (
+                              <a
+                                href={`tel:${modalState.order.courier.phone_number}`}
+                                className="text-sm text-[#FF6200] hover:underline"
+                                aria-label={`Call courier at ${modalState.order.courier.phone_number}`}
+                              >
+                                Kuryer telefoni: {modalState.order.courier.phone_number}
+                              </a>
+                            ) : (
+                              <p className="text-sm text-gray-600">
+                                Kuryer telefoni: Ma’lumot mavjud emas
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+                <hr className="border-gray-300" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">
+                    Mahsulotlar ({modalState.order.items?.length || 0})
+                  </p>
+                  <ul className="space-y-2">
+                    {modalState.order.items && modalState.order.items.length > 0 ? (
+                      modalState.order.items.map((item, index) => (
+                        <li key={index} className="flex items-center">
+                          <img
+                            src={item.product?.photo ? `${BASE_URL}${item.product.photo}` : defaultAvatar}
+                            alt={item.product?.title || 'Mahsulot'}
+                            className="w-8 h-8 rounded mr-3 object-cover"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-600">{item.product?.title || 'Noma’lum'}</p>
+                            <p className="text-sm text-gray-500">
+                              {item.quantity} × {parseFloat(item.price || 0).toLocaleString('uz-UZ')} so‘m
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-gray-600">
+                            {(item.quantity * parseFloat(item.price || 0)).toLocaleString('uz-UZ')} so‘m
+                          </p>
+                        </li>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-600">Mahsulot yo‘q</p>
+                    )}
+                  </ul>
+                </div>
+                <button
+                  className="mt-4 border border-[#FF6200] text-[#FF6200] px-4 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                  onClick={() => returnOrder(modalState.order.id)}
+                  disabled={isReturnDisabled(modalState.order.status)}
+                >
+                  <Cancel className="mr-2" fontSize="small" />
+                  Qaytarish
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-      </Box>
-    </ThemeProvider>
+
+        {/* Snackbar for success/error messages */}
+        {(error || success) && (
+          <div
+            className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white ${
+              error ? 'bg-red-600' : 'bg-green-600'
+            } flex items-center`}
+          >
+            { Jewelry || success}
+            <button
+              onClick={handleSnackbarClose}
+              className="ml-4 text-white hover:text-gray-200"
+              aria-label="Xabarni yopish"
+            >
+              <CloseIcon fontSize="small" />
+            </button>
+          </div>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 };
 
