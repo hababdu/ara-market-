@@ -2,42 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Box,
-  Typography,
-  Button,
-  Container,
-  Card,
-  CardContent,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  TextField,
-  CircularProgress,
-  Alert,
-  Grid,
-  IconButton,
-  Paper,
-  Chip,
-  Avatar,
-  Badge,
-  Stepper,
-  Step,
-  StepLabel,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Collapse,
-  useMediaQuery,
-  AppBar,
-  Toolbar,
-  ThemeProvider,
-  createTheme,
-} from '@mui/material';
-import {
   ArrowBack as ArrowBackIcon,
   ShoppingCart as ShoppingCartIcon,
   LocationOn as LocationIcon,
@@ -55,64 +19,11 @@ import {
   LocalShipping as DeliveryIcon,
 } from '@mui/icons-material';
 
-const steps = ['Savat', 'Yetkazish', 'To\'lov'];
-
-const theme = createTheme({
-  palette: {
-    primary: { main: '#1976d2' },
-    secondary: { main: '#dc004e' },
-    success: { main: '#4caf50' },
-    warning: { main: '#ff9800' },
-    error: { main: '#f44336' },
-    background: { default: '#f5f5f5', paper: '#fff' },
-  },
-  typography: {
-    fontFamily: "'Roboto', 'Arial', sans-serif",
-    subtitle1: { fontSize: '1rem', fontWeight: 600 },
-    subtitle2: { fontSize: '0.875rem', fontWeight: 600 },
-    body1: { fontSize: '0.8125rem' },
-    body2: { fontSize: '0.75rem' },
-    caption: { fontSize: '0.6875rem' },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: { borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: { borderRadius: 8, textTransform: 'none', minHeight: 40, fontWeight: 500 },
-        sizeSmall: { fontSize: '0.75rem', padding: '8px 16px' },
-        contained: { boxShadow: 'none', '&:hover': { boxShadow: 'none' } },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: { '& .MuiInputBase-root': { fontSize: '0.8125rem' } },
-      },
-    },
-    MuiStepLabel: {
-      styleOverrides: {
-        label: { fontSize: '0.75rem', fontWeight: 500 },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: { fontSize: '0.6875rem', height: 24, borderRadius: 6 },
-      },
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: { fontSize: '0.75rem', padding: '8px 12px', borderRadius: 8 },
-      },
-    },
-  },
-});
+const steps = ['Savat', 'Yetkazish', "To'lov"];
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = window.innerWidth < 640; // Simple mobile detection for Tailwind
   const [activeStep, setActiveStep] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [userData, setUserData] = useState(null);
@@ -430,432 +341,490 @@ const Checkout = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress size={40} />
-      </Box>
+      <div className="flex justify-center items-center min-h-screen">
+        <svg
+          className="animate-spin h-10 w-10 text-[#FF6200]"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8h-8z"
+          />
+        </svg>
+      </div>
     );
   }
 
   if (error && !cartItems.length && activeStep === 0) {
     return (
-      <Container maxWidth="xs" sx={{ py: 1.5, minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <Alert severity="error" sx={{ mb: 1.5, borderRadius: 2 }} onClose={() => setError(null)}>
+      <div className="max-w-xs mx-auto py-6 flex flex-col justify-center min-h-screen">
+        <div className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg mb-6 flex items-center justify-between">
           {error}
-        </Alert>
-        <Button
-          variant="contained"
+          <button onClick={() => setError(null)} className="ml-4 text-white hover:text-gray-200">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <button
           onClick={() => navigate('/products')}
-          startIcon={<ShoppingCartIcon />}
-          sx={{ alignSelf: 'center', borderRadius: 2, minHeight: 40, fontSize: '0.75rem' }}
+          className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-3 rounded-lg font-medium transition-transform shadow-md hover:scale-105 flex items-center justify-center mx-auto"
         >
+          <ShoppingCartIcon className="mr-2" fontSize="small" />
           Mahsulotlarga
-        </Button>
-      </Container>
+        </button>
+      </div>
     );
   }
 
   const totalWithCourier = calculateTotal + (courierFee || MIN_DELIVERY_FEE);
 
   return (
-    <ThemeProvider theme={theme}>
-      <Container maxWidth="xs" sx={{ py: 1.5, pb: isMobile ? 14 : 1.5 }}>
-        {/* Fixed Top Bar */}
-        <AppBar position="fixed" color="default" elevation={1} sx={{ background: '#fff' }}>
-          <Toolbar sx={{ minHeight: 48, px: 1 }}>
-            <IconButton onClick={handleBack} edge="start" sx={{ mr: 1, p: 0.5 }}>
-              <ArrowBackIcon fontSize="small" />
-            </IconButton>
-            <Typography variant="subtitle2" fontWeight="bold" noWrap>
-              Buyurtma berish
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Box sx={{ mt: isMobile ? 7 : 8 }} />
+    <div className="max-w-xs mx-auto py-6 pb-[120px] sm:pb-6">
+      {/* Fixed Top Bar */}
+      <div className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+        <div className="flex items-center justify-between px-4 py-2">
+          <button onClick={handleBack} className="text-[#FF6200] hover:text-[#FFAB40] p-2">
+            <ArrowBackIcon fontSize="small" />
+          </button>
+          <h1 className="text-sm font-bold text-gray-800">Buyurtma berish</h1>
+          <div className="w-6"></div> {/* Placeholder for alignment */}
+        </div>
+      </div>
+      <div className="mt-14 sm:mt-16" />
 
-        {/* Stepper */}
-        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 2 }}>
-          {steps.map(label => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      {/* Stepper */}
+      <div className="flex justify-between mb-6">
+        {steps.map((label, index) => (
+          <div key={label} className="flex-1 text-center">
+            <div
+              className={`h-2 rounded-full mb-2 ${
+                index <= activeStep ? 'bg-[#FF6200]' : 'bg-gray-300'
+              }`}
+            />
+            <span
+              className={`text-xs font-medium ${
+                index <= activeStep ? 'text-[#FF6200]' : 'text-gray-500'
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
 
-        {/* Alerts */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-        {locationError && (
-          <Alert severity="warning" sx={{ mb: 1.5 }} onClose={() => setLocationError(null)}>
-            {locationError}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setSuccess(null)}>
-            {success}
-          </Alert>
-        )}
+      {/* Alerts */}
+      {error && (
+        <div className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg mb-6 flex items-center justify-between">
+          {error}
+          <button onClick={() => setError(null)} className="ml-4 text-white hover:text-gray-200">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {locationError && (
+        <div className="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg mb-6 flex items-center justify-between">
+          {locationError}
+          <button onClick={() => setLocationError(null)} className="ml-4 text-white hover:text-gray-200">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg mb-6 flex items-center justify-between">
+          {success}
+          <button onClick={() => setSuccess(null)} className="ml-4 text-white hover:text-gray-200">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
-        {/* Main Content */}
-        <Grid container spacing={isMobile ? 1 : 1.5}>
-          <Grid item xs={12}>
-            {activeStep === 0 && (
-              <Card>
-                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Savat</Typography>
-                  <Divider sx={{ mb: 1.5 }} />
-                  <List dense>
-                    {cartItems.slice(0, summaryExpanded ? cartItems.length : 2).map((item, index) => (
-                      <ListItem key={index} divider sx={{ py: 0.5 }}>
-                        <Badge badgeContent={item.quantity} color="primary" sx={{ mr: 1 }}>
-                          <Avatar
-                            src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
-                            variant="rounded"
-                            sx={{ width: 28, height: 28 }}
-                          >
-                            {!item.photo && <FastfoodIcon fontSize="small" />}
-                          </Avatar>
-                        </Badge>
-                        <ListItemText
-                          primary={item.title}
-                          secondary={`${(item.price || 0).toLocaleString()} so'm`}
-                          primaryTypographyProps={{ variant: 'caption', noWrap: true }}
-                          secondaryTypographyProps={{ variant: 'caption' }}
-                        />
-                        <Typography variant="caption" fontWeight="bold">
-                          {(item.quantity * (item.price || 0)).toLocaleString()} so'm
-                        </Typography>
-                      </ListItem>
-                    ))}
-                  </List>
-                  {cartItems.length > 2 && (
-                    <Box sx={{ textAlign: 'center', mt: 1 }}>
-                      <Button
-                        size="small"
-                        onClick={() => setSummaryExpanded(!summaryExpanded)}
-                        endIcon={summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-                        sx={{ fontSize: '0.6875rem' }}
-                      >
-                        {summaryExpanded ? "Kamroq" : `+${cartItems.length - 2} ta`}
-                      </Button>
-                    </Box>
-                  )}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1.5 }}>
-                    <Button
-                      variant="contained"
-                      onClick={handleNextStep}
-                      size="small"
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      Davom etish
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            )}
-
-            {activeStep === 1 && (
-              <Card>
-                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Yetkazish ma'lumotlari</Typography>
-                  <Divider sx={{ mb: 1.5 }} />
-                  
-                  {/* Location Section */}
-                  <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f5f9ff', borderRadius: 2, border: '1px solid #e0e0e0' }}>
-                    <Typography variant="caption" sx={{ mb: 0.5, display: 'flex', alignItems: 'center' }}>
-                      <GpsFixedIcon color="primary" sx={{ mr: 0.5, fontSize: 16 }} /> Joylashuv
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={locationLoading ? <CircularProgress size={14} /> : <LocationSearchingIcon fontSize="small" />}
-                      onClick={detectLocation}
-                      disabled={locationLoading}
-                      fullWidth
-                      size="small"
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      {deliveryInfo.latitude ? "Joylashuvni yangilash" : "Joylashuvni aniqlash"}
-                    </Button>
-                    {deliveryInfo.latitude && (
-                      <Box sx={{ mt: 1 }}>
-                        <Chip
-                          icon={<CheckCircleIcon />}
-                          label="Joylashuv aniqlangan"
-                          color="success"
-                          size="small"
-                          variant="outlined"
-                        />
-                        {distance && (
-                          <Chip
-                            icon={<DeliveryIcon />}
-                            label={`Masofa: ${distance} km`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ ml: 0.5 }}
-                          />
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-
-                  <TextField
-                    fullWidth
-                    label="Telefon raqam"
-                    name="phone"
-                    value={deliveryInfo.phone}
-                    onChange={handleInputChange}
-                    margin="dense"
-                    required
-                    size="small"
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start"><PhoneIcon fontSize="small" /></InputAdornment>,
-                    }}
-                    helperText="Masalan: 901234567"
-                    sx={{ mb: 1 }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="To'liq manzil"
-                    name="address"
-                    value={deliveryInfo.address}
-                    onChange={handleInputChange}
-                    margin="dense"
-                    required
-                    size="small"
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start"><LocationIcon fontSize="small" /></InputAdornment>,
-                    }}
-                    sx={{ mb: 1 }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Qo'shimcha izoh (ixtiyoriy)"
-                    name="notes"
-                    value={deliveryInfo.notes}
-                    onChange={handleInputChange}
-                    margin="dense"
-                    size="small"
-                    multiline
-                    rows={2}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start"><NotesIcon fontSize="small" /></InputAdornment>,
-                    }}
-                  />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handlePrevStep}
-                      size="small"
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      Ortga
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleNextStep}
-                      disabled={!deliveryInfo.latitude || !deliveryInfo.longitude}
-                      size="small"
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      Davom etish
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            )}
-
-            {activeStep === 2 && (
-              <Card>
-                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>To'lov usuli</Typography>
-                  <Divider sx={{ mb: 1.5 }} />
-                  
-                  {/* Payment Method */}
-                  <Paper sx={{ p: 1, border: '1px solid #e0e0e0', borderRadius: 2, mb: 1.5 }}>
-                    <Box display="flex" alignItems="center">
-                      <CashIcon color="primary" sx={{ fontSize: 20, mr: 1 }} />
-                      <Box>
-                        <Typography variant="caption" fontWeight="bold">Naqd pul</Typography>
-                        <Typography variant="caption" color="text.secondary">Yetkazib berilganda to'lov</Typography>
-                      </Box>
-                      <CheckCircleIcon color="primary" sx={{ ml: 'auto', fontSize: 18 }} />
-                    </Box>
-                  </Paper>
-
-                  {/* Delivery Info */}
-                  <Typography variant="caption" fontWeight="bold">Yetkazish ma'lumotlari</Typography>
-                  <List dense sx={{ mb: 1.5 }}>
-                    <ListItem sx={{ py: 0.25 }}>
-                      <PhoneIcon fontSize="small" sx={{ mr: 0.5 }} />
-                      <Typography variant="caption">{deliveryInfo.phone}</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 0.25 }}>
-                      <LocationIcon fontSize="small" sx={{ mr: 0.5 }} />
-                      <Typography variant="caption">{deliveryInfo.address}</Typography>
-                    </ListItem>
-                    {deliveryInfo.notes && (
-                      <ListItem sx={{ py: 0.25 }}>
-                        <NotesIcon fontSize="small" sx={{ mr: 0.5 }} />
-                        <Typography variant="caption">{deliveryInfo.notes}</Typography>
-                      </ListItem>
-                    )}
-                  </List>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handlePrevStep}
-                      size="small"
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      Ortga
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleSubmitOrder}
-                      disabled={submitting}
-                      size="small"
-                      startIcon={submitting && <CircularProgress size={14} />}
-                      sx={{ minHeight: 40, borderRadius: 2 }}
-                    >
-                      {submitting ? "Jo'natilyapti..." : "Buyurtma berish"}
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            )}
-          </Grid>
-        </Grid>
-
-        {/* Mobile Summary Bottom Sheet */}
-        <Paper
-          sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
-            zIndex: 1000,
-            display: isMobile ? 'block' : 'none',
-          }}
-        >
-          <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">Jami:</Typography>
-              <Typography variant="subtitle2" fontWeight="bold">
-                {totalWithCourier.toLocaleString()} so'm
-              </Typography>
-            </Box>
-            <IconButton onClick={() => setSummaryExpanded(!summaryExpanded)} size="small">
-              {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-            </IconButton>
-          </Box>
-          <Collapse in={summaryExpanded}>
-            <Box sx={{ p: 1.5, bgcolor: 'background.paper' }}>
-              <List dense>
-                {cartItems.map((item, index) => (
-                  <ListItem key={index} sx={{ py: 0.25 }}>
-                    <Badge badgeContent={item.quantity} color="primary" sx={{ mr: 1 }}>
-                      <Avatar
-                        src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
-                        variant="rounded"
-                        sx={{ width: 24, height: 24 }}
-                      >
-                        {!item.photo && <FastfoodIcon fontSize="small" />}
-                      </Avatar>
-                    </Badge>
-                    <ListItemText
-                      primary={item.title}
-                      secondary={`${(item.price || 0).toLocaleString()} so'm`}
-                      primaryTypographyProps={{ variant: 'caption', noWrap: true }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
+      {/* Main Content */}
+      <div className="space-y-4">
+        {activeStep === 0 && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-4">Savat</h2>
+            <hr className="mb-4 border-gray-200" />
+            <ul className="space-y-2">
+              {cartItems.slice(0, summaryExpanded ? cartItems.length : 2).map((item, index) => (
+                <li key={index} className="flex items-center border-b border-gray-200 py-2 last:border-b-0">
+                  <div className="relative mr-2">
+                    <img
+                      src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
+                      alt={item.title}
+                      className="w-7 h-7 rounded object-cover"
+                      onError={(e) => (e.target.src = 'https://via.placeholder.com/28x28?text=No+Image')}
                     />
-                    <Typography variant="caption" fontWeight="bold">
-                      {(item.quantity * (item.price || 0)).toLocaleString()} so'm
-                    </Typography>
-                  </ListItem>
-                ))}
-              </List>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="caption">Mahsulotlar:</Typography>
-                  <Typography variant="caption">{calculateTotal.toLocaleString()} so'm</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="caption">Yetkazib berish:</Typography>
-                  <Typography variant="caption">{courierFee.toLocaleString()} so'm</Typography>
-                </Box>
-                {distance && (
-                  <Box display="flex" justifyContent="space-between">
-                    <Typography variant="caption">Masofa:</Typography>
-                    <Typography variant="caption">{distance} km</Typography>
-                  </Box>
+                    <span className="absolute -top-1 -right-1 bg-[#FF6200] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {item.quantity}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-800 truncate">{item.title}</p>
+                    <p className="text-xs text-gray-600">{(item.price || 0).toLocaleString()} so'm</p>
+                  </div>
+                  <p className="text-xs font-bold text-gray-800">
+                    {(item.quantity * (item.price || 0)).toLocaleString()} so'm
+                  </p>
+                </li>
+              ))}
+            </ul>
+            {cartItems.length > 2 && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => setSummaryExpanded(!summaryExpanded)}
+                  className="text-[#FF6200] hover:text-[#FFAB40] text-xs font-medium flex items-center mx-auto"
+                >
+                  {summaryExpanded ? "Kamroq" : `+${cartItems.length - 2} ta`}
+                  {summaryExpanded ? (
+                    <ExpandLessIcon fontSize="small" className="ml-1" />
+                  ) : (
+                    <ExpandMoreIcon fontSize="small" className="ml-1" />
+                  )}
+                </button>
+              </div>
+            )}
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={handleNextStep}
+                className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105"
+              >
+                Davom etish
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeStep === 1 && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-4">Yetkazish ma'lumotlari</h2>
+            <hr className="mb-4 border-gray-200" />
+
+            {/* Location Section */}
+            <div className="mb-4 p-2 bg-[#FFF3E0] rounded-lg border border-orange-100">
+              <p className="text-xs flex items-center mb-2">
+                <GpsFixedIcon className="text-[#FF6200] mr-1" style={{ fontSize: 16 }} />
+                Joylashuv
+              </p>
+              <button
+                onClick={detectLocation}
+                disabled={locationLoading}
+                className="w-full bg-[#FF6200] hover:bg-[#FFAB40] text-white py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {locationLoading ? (
+                  <svg
+                    className="animate-spin h-4 w-4 text-white mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h-8z"
+                    />
+                  </svg>
+                ) : (
+                  <LocationSearchingIcon fontSize="small" className="mr-2" />
                 )}
-                <Divider sx={{ my: 0.5 }} />
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="caption" fontWeight="bold">Umumiy summa:</Typography>
-                  <Typography variant="caption" fontWeight="bold" color="primary">
-                    {totalWithCourier.toLocaleString()} so'm
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-          </Collapse>
-        </Paper>
+                {deliveryInfo.latitude ? "Joylashuvni yangilash" : "Joylashuvni aniqlash"}
+              </button>
+              {deliveryInfo.latitude && (
+                <div className="mt-2 flex gap-2">
+                  <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold text-green-600 border border-green-600">
+                    <CheckCircleIcon fontSize="small" className="mr-1" />
+                    Joylashuv aniqlangan
+                  </span>
+                  {distance && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold text-[#FF6200] border border-[#FF6200]">
+                      <DeliveryIcon fontSize="small" className="mr-1" />
+                      Masofa: {distance} km
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
-        
-        {/* Dialogs */}
-        <Dialog open={showLocationDialog} onClose={handleLocationDialogClose}>
-          <DialogTitle sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center' }}>
-            <ErrorIcon color="error" sx={{ mr: 0.5, fontSize: 18 }} /> Joylashuv ruxsati
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText sx={{ fontSize: '0.75rem' }}>
+            <div className="relative mb-4">
+              <PhoneIcon className="absolute top-3 left-3 text-gray-500" style={{ fontSize: 16 }} />
+              <input
+                type="text"
+                name="phone"
+                value={deliveryInfo.phone}
+                onChange={handleInputChange}
+                placeholder="Telefon raqam (masalan: 901234567)"
+                required
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200] text-sm"
+              />
+            </div>
+            <div className="relative mb-4">
+              <LocationIcon className="absolute top-3 left-3 text-gray-500" style={{ fontSize: 16 }} />
+              <input
+                type="text"
+                name="address"
+                value={deliveryInfo.address}
+                onChange={handleInputChange}
+                placeholder="To'liq manzil"
+                required
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200] text-sm"
+              />
+            </div>
+            <div className="relative mb-4">
+              <NotesIcon className="absolute top-3 left-3 text-gray-500" style={{ fontSize: 16 }} />
+              <textarea
+                name="notes"
+                value={deliveryInfo.notes}
+                onChange={handleInputChange}
+                placeholder="Qo'shimcha izoh (ixtiyoriy)"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200] text-sm resize-none h-20"
+              />
+            </div>
+            <div className="flex justify-between mt-6">
+              <button
+                onClick={handlePrevStep}
+                className="border border-[#FF6200] text-[#FF6200] px-6 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105"
+              >
+                Ortga
+              </button>
+              <button
+                onClick={handleNextStep}
+                disabled={!deliveryInfo.latitude || !deliveryInfo.longitude}
+                className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Davom etish
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeStep === 2 && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-4">To'lov usuli</h2>
+            <hr className="mb-4 border-gray-200" />
+
+            {/* Payment Method */}
+            <div className="p-2 border border-gray-200 rounded-lg mb-4">
+              <div className="flex items-center">
+                <CashIcon className="text-[#FF6200] mr-2" style={{ fontSize: 20 }} />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Naqd pul</p>
+                  <p className="text-xs text-gray-600">Yetkazib berilganda to'lov</p>
+                </div>
+                <CheckCircleIcon className="ml-auto text-[#FF6200]" style={{ fontSize: 18 }} />
+              </div>
+            </div>
+
+            {/* Delivery Info */}
+            <p className="text-xs font-bold text-gray-800 mb-2">Yetkazish ma'lumotlari</p>
+            <ul className="space-y-2 mb-4">
+              <li className="flex items-center">
+                <PhoneIcon className="text-gray-600 mr-2" style={{ fontSize: 16 }} />
+                <p className="text-xs text-gray-600">{deliveryInfo.phone}</p>
+              </li>
+              <li className="flex items-center">
+                <LocationIcon className="text-gray-600 mr-2" style={{ fontSize: 16 }} />
+                <p className="text-xs text-gray-600">{deliveryInfo.address}</p>
+              </li>
+              {deliveryInfo.notes && (
+                <li className="flex items-center">
+                  <NotesIcon className="text-gray-600 mr-2" style={{ fontSize: 16 }} />
+                  <p className="text-xs text-gray-600">{deliveryInfo.notes}</p>
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-between mt-6">
+              <button
+                onClick={handlePrevStep}
+                className="border border-[#FF6200] text-[#FF6200] px-6 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105"
+              >
+                Ortga
+              </button>
+              <button
+                onClick={handleSubmitOrder}
+                disabled={submitting}
+                className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105 flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {submitting ? (
+                  <svg
+                    className="animate-spin h-4 w-4 text-white mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h-8z"
+                    />
+                  </svg>
+                ) : (
+                  <PaymentIcon fontSize="small" className="mr-2" />
+                )}
+                {submitting ? "Jo'natilyapti..." : "Buyurtma berish"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Summary Bottom Sheet */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-50 sm:hidden transition-all duration-300 ${
+          summaryExpanded ? 'h-[50%]' : 'h-16'
+        }`}
+      >
+        <div className="flex justify-between items-center p-4 bg-white rounded-t-2xl">
+          <div>
+            <p className="text-xs text-gray-600">Jami:</p>
+            <p className="text-sm font-bold text-gray-800">{totalWithCourier.toLocaleString()} so'm</p>
+          </div>
+          <button
+            onClick={() => setSummaryExpanded(!summaryExpanded)}
+            className="text-[#FF6200] hover:text-[#FFAB40]"
+          >
+            {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </button>
+        </div>
+        {summaryExpanded && (
+          <div className="p-4">
+            <ul className="space-y-2 mb-4">
+              {cartItems.map((item, index) => (
+                <li key={index} className="flex items-center">
+                  <div className="relative mr-2">
+                    <img
+                      src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
+                      alt={item.title}
+                      className="w-6 h-6 rounded object-cover"
+                      onError={(e) => (e.target.src = 'https://via.placeholder.com/24x24?text=No+Image')}
+                    />
+                    <span className="absolute -top-1 -right-1 bg-[#FF6200] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {item.quantity}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-800 truncate">{item.title}</p>
+                    <p className="text-xs text-gray-600">{(item.price || 0).toLocaleString()} so'm</p>
+                  </div>
+                  <p className="text-xs font-bold text-gray-800">
+                    {(item.quantity * (item.price || 0)).toLocaleString()} so'm
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <hr className="my-2 border-gray-200" />
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <p className="text-xs text-gray-600">Mahsulotlar:</p>
+                <p className="text-xs text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-xs text-gray-600">Yetkazib berish:</p>
+                <p className="text-xs text-gray-600">{courierFee.toLocaleString()} so'm</p>
+              </div>
+              {distance && (
+                <div className="flex justify-between">
+                  <p className="text-xs text-gray-600">Masofa:</p>
+                  <p className="text-xs text-gray-600">{distance} km</p>
+                </div>
+              )}
+              <hr className="my-1 border-gray-200" />
+              <div className="flex justify-between">
+                <p className="text-xs font-bold text-gray-800">Umumiy summa:</p>
+                <p className="text-xs font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Dialogs */}
+      {showLocationDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center mb-4">
+              <ErrorIcon className="text-red-500 mr-2" style={{ fontSize: 18 }} />
+              <h2 className="text-sm font-semibold text-gray-800">Joylashuv ruxsati</h2>
+            </div>
+            <p className="text-xs text-gray-600 mb-6">
               Buyurtma berish uchun joylashuv ma'lumotlari kerak. Iltimos, brauzer sozlamalarida joylashuv ruxsatini yoqing.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleLocationDialogClose} size="small">
-              Yopish
-            </Button>
-            <Button
-              onClick={handleBrowserSettingsRedirect}
-              variant="contained"
-              size="small"
-            >
-              Sozlamalarga o'tish
-            </Button>
-          </DialogActions>
-        </Dialog>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleLocationDialogClose}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+              >
+                Yopish
+              </button>
+              <button
+                onClick={handleBrowserSettingsRedirect}
+                className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-4 py-2 rounded-lg font-medium transition-transform shadow-md hover:scale-105 text-sm"
+              >
+                Sozlamalarga o'tish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-        <Dialog open={showBackDialog} onClose={handleBackCancel}>
-          <DialogTitle sx={{ fontSize: '0.875rem' }}>Buyurtmani bekor qilish</DialogTitle>
-          <DialogContent>
-            <DialogContentText sx={{ fontSize: '0.75rem' }}>
+      {showBackDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h2 className="text-sm font-semibold text-gray-800 mb-4">Buyurtmani bekor qilish</h2>
+            <p className="text-xs text-gray-600 mb-6">
               Rostan ham buyurtmani bekor qilmoqchimisiz? Barcha ma'lumotlar yo'qoladi.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleBackCancel} size="small">
-              Bekor qilish
-            </Button>
-            <Button
-              onClick={handleBackConfirm}
-              variant="contained"
-              size="small"
-              color="error"
-            >
-              Tasdiqlash
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
-    </ThemeProvider>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleBackCancel}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleBackConfirm}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+              >
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

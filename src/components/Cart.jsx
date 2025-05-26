@@ -9,7 +9,7 @@ import {
   Close as CloseIcon,
   LocalShipping as ShippingIcon,
   Discount as DiscountIcon,
-  Payment as PaymentIcon
+  Payment as PaymentIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -72,13 +72,10 @@ const Cart = () => {
   };
 
   const applyCoupon = () => {
-    // Bu yerda kupon tekshirish logikasi bo'lishi kerak
     if (couponCode.trim() === '') {
       showSnackbar('Iltimos, kupon kodini kiriting', 'error');
       return;
     }
-    
-    // Demo uchun 10% chegirma
     setDiscount(calculateSubtotal() * 0.1);
     showSnackbar('Kupon qo\'llandi! 10% chegirma', 'success');
     setShowCouponInput(false);
@@ -86,26 +83,26 @@ const Cart = () => {
 
   if (cart.length === 0) {
     return (
-      <div className="container mx-auto py-6 px-4 max-w-6xl">
+      <div className="max-w-6xl mx-auto py-6 px-4">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center text-blue-600 hover:text-blue-800 mb-6 transition-colors"
+          className="flex items-center text-[#FF6200] hover:text-[#FFAB40] mb-6 transition-colors"
         >
           <ArrowBackIcon className="mr-2" />
           Bosh sahifaga qaytish
         </button>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-50 border border-blue-100 rounded-lg p-8 text-center"
+          className="bg-[#FFF3E0] border border-orange-100 rounded-2xl p-8 text-center"
         >
-          <CartIcon className="w-16 h-16 mx-auto mb-4 text-blue-400" />
+          <CartIcon className="w-16 h-16 mx-auto mb-4 text-[#FF6200]" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Savat bo'sh</h2>
           <p className="text-gray-600 mb-6">Sizning savatingizda hozircha mahsulotlar yo'q</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md"
+            className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-3 rounded-lg font-medium transition-transform shadow-md hover:scale-105"
           >
             Mahsulotlarni ko'rish
           </button>
@@ -115,19 +112,19 @@ const Cart = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-6xl">
+    <div className="max-w-6xl mx-auto py-6 px-4">
       <button
         onClick={() => navigate('/')}
-        className="flex items-center text-blue-600 hover:text-blue-800 mb-6 transition-colors"
+        className="flex items-center text-[#FF6200] hover:text-[#FFAB40] mb-6 transition-colors"
       >
         <ArrowBackIcon className="mr-2" />
         Bosh sahifaga qaytish
       </button>
 
       <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
-        <CartIcon className="mr-3 text-blue-500" />
+        <CartIcon className="mr-3 text-[#FF6200]" />
         Savat
-        <span className="ml-3 bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
+        <span className="ml-3 bg-orange-100 text-[#FF6200] text-sm font-medium px-2.5 py-0.5 rounded-full">
           {cart.reduce((sum, item) => sum + item.quantity, 0)} ta
         </span>
       </h1>
@@ -135,9 +132,9 @@ const Cart = () => {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Mahsulotlar ro'yxati */}
         <div className="lg:w-2/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             {cart.map((item, index) => (
-              <motion.div 
+              <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -150,7 +147,7 @@ const Cart = () => {
                   className="w-24 h-24 object-contain rounded-lg mr-4 border border-gray-200"
                 />
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800 hover:text-blue-600 transition-colors">
+                  <h3 className="text-lg font-semibold text-gray-800 hover:text-[#FF6200] transition-colors">
                     {item.title}
                   </h3>
                   <p className="text-gray-600 mb-2">
@@ -198,9 +195,9 @@ const Cart = () => {
 
         {/* Xulosa paneli */}
         <div className="lg:w-1/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-6">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 sticky top-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 text-[#FF6200]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               Buyurtma xulosasi
@@ -231,17 +228,13 @@ const Cart = () => {
               </div>
             </div>
 
-
-
             <button
               onClick={() => navigate('/checkout', { state: { items: cart } })}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center transition-colors shadow-md"
+              className="w-full bg-[#FF6200] hover:bg-[#FFAB40] text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center transition-transform shadow-md hover:scale-105"
             >
               <PaymentIcon className="mr-2" />
               Buyurtma berish
             </button>
-
-           
           </div>
         </div>
       </div>
@@ -258,7 +251,7 @@ const Cart = () => {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl"
+              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Mahsulotni o'chirish</h2>

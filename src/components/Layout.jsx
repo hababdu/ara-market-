@@ -4,7 +4,7 @@ import {
   ShoppingCart as CartIcon,
   Home as HomeIcon,
   Person as PersonIcon,
-  ListAlt as OrdersIcon, // Correct icon
+  ListAlt as OrdersIcon,
   LocalOffer as PromoIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
@@ -55,54 +55,57 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-[#FFF3E0] flex flex-col">
       {/* Asosiy kontent */}
-      <main className="flex-1 container mx-auto md:mt-20 mb-16">
+      <main className="flex-1 max-w-6xl mx-auto md:mt-20 mb-16 px-4">
         <Outlet />
       </main>
 
       {/* Mobil pastki navigatsiya (faqat ikonalar) */}
-      <nav className="fixed bottom-0 w-full bg-[#FF6200] text-white md:hidden flex justify-around items-center py-2 z-50">
+      <nav className="fixed bottom-0 w-full bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white md:hidden flex justify-around items-center py-3 z-50 shadow-lg">
         <button
           onClick={() => handleNavigate('/')}
-          className="flex flex-col items-center"
+          className="flex flex-col items-center p-2 hover:bg-white/10 rounded-full transition-colors"
           aria-label="Bosh sahifa"
         >
-          <HomeIcon />
+          <HomeIcon className="text-white" style={{ fontSize: 24 }} />
         </button>
         <button
           onClick={() => handleNavigate('/profile')}
-          className="flex flex-col items-center"
+          className="flex flex-col items-center p-2 hover:bg-white/10 rounded-full transition-colors"
           aria-label="Profil"
         >
-          <PersonIcon />
+          <PersonIcon className="text-white" style={{ fontSize: 24 }} />
         </button>
         <button
           onClick={() => handleNavigate('/status')}
-          className="flex flex-col items-center"
+          className="flex flex-col items-center p-2 hover:bg-white/10 rounded-full transition-colors"
           aria-label="Faol buyurtmalar"
         >
-          <OrdersIcon /> {/* Use OrdersIcon instead of ListAltIcon */}
+          <OrdersIcon className="text-white" style={{ fontSize: 24 }} />
         </button>
         <button
           onClick={() => handleNavigate('/orders')}
-          className="flex flex-col items-center"
+          className="flex flex-col items-center p-2 hover:bg-white/10 rounded-full transition-colors"
           aria-label="Buyurtmalar"
         >
-          <OrdersIcon />
+          <OrdersIcon className="text-white" style={{ fontSize: 24 }} />
         </button>
-       
-        <button
-          onClick={() => handleNavigate('/cart')}
-          className="relative flex flex-col items-center"
-          aria-label="Savat"
-        >
+      </nav>
+
+      {/* Suzib yuruvchi savat tugmasi */}
+      <button
+        onClick={() => handleNavigate('/cart')}
+        className="fixed bottom-20 right-4 bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform z-50 md:hidden"
+        aria-label="Savat"
+      >
+        <div className="relative">
           <CartIcon className="w-6 h-6" />
           {cartCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {cartCount > 9 ? '9+' : cartCount}
             </span>
           )}
-        </button>
-      </nav>
+        </div>
+      </button>
     </div>
   );
 };
