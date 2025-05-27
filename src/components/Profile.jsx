@@ -6,18 +6,80 @@ import {
   Home as HomeIcon,
   Phone as PhoneIcon,
   LocationOn as LocationOnIcon,
-  Edit as EditIcon,
   Logout as LogoutIcon,
-  ShoppingCart as CartIcon,
-  Favorite as FavoriteIcon,
-  Notifications as NotificationsIcon,
   Close as CloseIcon,
   Visibility,
   VisibilityOff,
   Lock as LockIcon,
   MyLocation as MyLocationIcon,
 } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Card,
+  CardContent,
+  Avatar,
+  LinearProgress,
+  Snackbar,
+  Alert as MuiAlert,
+  InputAdornment,
+  IconButton,
+  Fade,
+  Tooltip,
+} from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+
+// Theme configuration
+const theme = createTheme({
+  palette: {
+    primary: { main: '#1976d2', contrastText: '#fff' },
+    secondary: { main: '#f50057' },
+    background: { default: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, color: '#1976d2' },
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: 'none',
+          fontSize: '1rem',
+          padding: '10px 20px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          transition: 'transform 0.2s ease-in-out',
+          '&:hover': { transform: 'scale(1.05)' },
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 8,
+            backgroundColor: '#fff',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+            '&:hover fieldset': { borderColor: '#1976d2' },
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+          backgroundColor: '#ffffff',
+        },
+      },
+    },
+  },
+});
 
 // Default avatar URL
 const defaultAvatar = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png';
@@ -68,8 +130,76 @@ const ProfilePage = () => {
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [availableProfiles, setAvailableProfiles] = useState([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+
+  // Monitor network status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Refresh token function
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      return false;
+    }
+    try {
+      const response = await axios.post(
+        'https://hosilbek.pythonanywhere.com/api/token/refresh/',
+        { refresh: refreshToken },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      const newAccessToken = response.data.access;
+      localStorage.setItem('authToken', newAccessToken);
+      return true;
+    } catch (err) {
+      console.error('Token refresh error:', err.response?.data || err.message);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userData');
+      return false;
+    }
+  };
+
+  // Generic API request with retry and token refresh
+  const makeAuthenticatedRequest = async (config, retries = 1) => {
+    let attempt = 0;
+    while (attempt <= retries) {
+      try {
+        const currentToken = localStorage.getItem('authToken');
+        if (!currentToken) {
+          throw new Error('No auth token available');
+        }
+        return await axios({
+          ...config,
+          headers: {
+            ...config.headers,
+            Authorization: `Bearer ${currentToken}`,
+          },
+        });
+      } catch (err) {
+        if (err.response?.status === 401 && attempt < retries) {
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            attempt++;
+            continue;
+          }
+        }
+        throw err;
+      }
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -85,16 +215,20 @@ const ProfilePage = () => {
           return;
         }
 
-        const response = await axios.get('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await makeAuthenticatedRequest({
+          method: 'get',
+          url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
         });
 
         let profileData = response.data;
-        if (Array.isArray(response.data) && response.data.length === 0) {
-          throw new Error('Profil ma\'lumotlari topilmadi');
-        } else if (Array.isArray(response.data) && response.data.length > 0) {
-          profileData = response.data[0];
-        } else if (!profileData || !profileData.id) {
+        if (Array.isArray(profileData)) {
+          if (profileData.length === 0) {
+            throw new Error('Profil ma\'lumotlari topilmadi');
+          }
+          profileData = profileData[0];
+        }
+
+        if (!profileData || !profileData.id) {
           throw new Error('Profil ma\'lumotlari topilmadi');
         }
 
@@ -118,8 +252,7 @@ const ProfilePage = () => {
           localStorage.removeItem('authToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('userData');
-          navigate('/login');
-        } else if (err.response?.status === 404) {
+        } else if (err.response?.status === 404 || err.message === 'Profil ma\'lumotlari topilmadi') {
           errorMessage = 'Profil ma\'lumotlari topilmadi';
         } else if (err.response?.status === 500) {
           errorMessage = 'Server xatosi. Keyinroq urinib ko\'ring';
@@ -136,18 +269,25 @@ const ProfilePage = () => {
 
     const fetchAvailableProfiles = async () => {
       try {
-        const response = await axios.get('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', {
+        const response = await makeAuthenticatedRequest({
+          method: 'get',
+          url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (Array.isArray(response.data)) {
+        if (Array.isArray(response.data) && isMounted) {
           setAvailableProfiles(response.data);
         } else {
-          setAvailableProfiles([]);
+          if (isMounted) {
+            setAvailableProfiles([]);
+          }
         }
       } catch (err) {
-        console.error('Fetch available profiles error:', err);
-        setAvailableProfiles([]);
+        console.error('Fetch available profiles error:', err.response?.data || err.message);
+        if (isMounted) {
+          setAvailableProfiles([]);
+          setError('Foydalanuvchi profillarini yuklashda xato yuz berdi');
+        }
       }
     };
 
@@ -169,30 +309,9 @@ const ProfilePage = () => {
     navigate('/');
   };
 
-  const handleEditProfile = () => {
-    navigate('/edit-profile');
-  };
-
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbar({ ...snackbar, open: false });
-  };
-
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    if (name === 'selectedProfile' && value) {
-      const selected = availableProfiles.find((profile) => profile.id === parseInt(value));
-      if (selected) {
-        setFormData((prev) => ({
-          ...prev,
-          username: selected.user.username || '',
-          password: '',
-          selectedProfile: value,
-        }));
-      }
-    }
   };
 
   const handleDetectLocation = (retries = 3, delay = 2000) => {
@@ -248,6 +367,12 @@ const ProfilePage = () => {
     setFormSuccess('');
     setIsFormLoading(true);
 
+    if (!isOnline) {
+      setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
+      setIsFormLoading(false);
+      return;
+    }
+
     if (formData.username.length < 3) {
       setFormError("Foydalanuvchi ismi kamida 3 belgidan iborat bo'lishi kerak.");
       setIsFormLoading(false);
@@ -300,13 +425,13 @@ const ProfilePage = () => {
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
 
-      setFormSuccess("Ro'yxatdan o'tish muvaffaqiyatli!");
+      setFormSuccess("Ro'yxatdan o'tish muvaffaqiyatli! Profil sahifasiga o'tilmoqda...");
       setTimeout(() => {
         handleCloseModal();
-        window.location.reload();
+        navigate('/profile');
       }, 2000);
     } catch (err) {
-      console.error('Registration Error:', err.response?.data);
+      console.error('Registration Error:', err.message, err.response?.data);
       let errorMessage = "Ro'yxatdan o'tishda xatolik yuz berdi.";
       if (err.response) {
         if (err.response.status === 400) {
@@ -318,8 +443,8 @@ const ProfilePage = () => {
         } else if (err.response.status === 500) {
           errorMessage = "Server xatosi. Iltimos, keyinroq urinib ko'ring.";
         }
-      } else if (err.request) {
-        errorMessage = 'Tarmoq xatosi. Internet aloqangizni tekshiring.';
+      } else if (err.request || err.message.includes('Network Error')) {
+        errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
       }
       setFormError(errorMessage);
     } finally {
@@ -332,6 +457,12 @@ const ProfilePage = () => {
     setFormError('');
     setFormSuccess('');
     setIsFormLoading(true);
+
+    if (!isOnline) {
+      setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
+      setIsFormLoading(false);
+      return;
+    }
 
     if (!formData.username.trim()) {
       setFormError('Foydalanuvchi ismini kiriting.');
@@ -365,18 +496,18 @@ const ProfilePage = () => {
         window.location.reload();
       }, 2000);
     } catch (err) {
-      console.error('Login Error:', err.response?.data);
+      console.error('Login Error:', err.message, err.response?.data);
       let errorMessage = 'Tizimga kirishda xatolik yuz berdi.';
       if (err.response) {
         if (err.response.status === 401) {
           errorMessage = 'Noto‘g‘ri foydalanuvchi ismi yoki parol.';
         } else if (err.response.status === 400) {
-          errorMessage = err.response.data.detail/kg || 'Noto‘g‘ri ma‘lumotlar kiritildi.';
+          errorMessage = err.response.data.detail || 'Noto‘g‘ri ma‘lumotlar kiritildi.';
         } else if (err.response.status === 500) {
           errorMessage = 'Server xatosi. Iltimos, keyinroq urinib ko‘ring.';
         }
-      } else if (err.request) {
-        errorMessage = 'Tarmoq xatosi. Internet aloqangizni tekshiring.';
+      } else if (err.request || err.message.includes('Network Error')) {
+        errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
       }
       setFormError(errorMessage);
     } finally {
@@ -442,7 +573,7 @@ const ProfilePage = () => {
 
   return (
     <ErrorBoundary>
-      <div className=" bg-[#FFF3E0] pb-8">
+      <div className="bg-[#FFF3E0] pb-8">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -452,10 +583,12 @@ const ProfilePage = () => {
             {userData ? (
               <div className="mt-16 sm:mt-20">
                 {/* Profile Card */}
-                <div  style={{
-                background: 'linear-gradient(to bottom, #FFFFFF, #FFFFFF, #FFF3E0)',
-              }}
-               className="relative rounded-2xl  p-6">
+                <div
+                  style={{
+                    background: 'linear-gradient(to bottom, #FFFFFF, #FFFFFF, #FFF3E0)',
+                  }}
+                  className="relative rounded-2xl p-6"
+                >
                   <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 sm:-translate-y-1/3">
                     <img
                       src={userData.avatar}
@@ -467,7 +600,6 @@ const ProfilePage = () => {
                     <h2 className="text-2xl font-bold text-gray-800">
                       {userData.user.username || 'Foydalanuvchi'}
                     </h2>
-                    
                   </div>
 
                   {/* Profile Details */}
@@ -508,15 +640,7 @@ const ProfilePage = () => {
                       )}
                     </ul>
                     <div className="flex justify-center gap-4 mt-6">
-                      <button
-                        className="bg-[#FFAB40] mt-7 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center"
-                        onClick={handleLogout}
-                        aria-label="Tizimdan chiqish"
-                      >
-                        <LogoutIcon className="mr-2" fontSize="small" />
-                        Chiqish
-                      </button>
-                    
+                     
                     </div>
                   </div>
                 </div>
@@ -549,204 +673,307 @@ const ProfilePage = () => {
 
         {/* Modal for Login/Register */}
         {modalState.type && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
-            onClick={handleCloseModal}
-          >
+          <ThemeProvider theme={theme}>
             <div
-              className="bg-[#FFF3E0] w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 h-[90%] sm:h-auto overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
+              onClick={handleCloseModal}
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#FF6200]">
-                  {modalState.type === 'register' ? "Ro'yxatdan o'tish" : 'Tizimga kirish'}
-                </h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-[#FF6200] hover:text-[#FFAB40] transition-colors"
-                  aria-label="Modalni yopish"
+              <Fade in={true} timeout={1000}>
+                <div
+                  className="bg-white w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[90%] sm:h-auto overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <CloseIcon />
-                </button>
-              </div>
-
-              <div className="flex justify-center mb-6">
-                <div className="bg-[#FF6200] rounded-full p-4">
-                  <PersonIcon className="text-white" fontSize="large" />
-                </div>
-              </div>
-
-              <form
-                onSubmit={modalState.type === 'register' ? handleRegisterSubmit : handleLoginSubmit}
-                className="space-y-4"
-              >
-                {modalState.type === 'login' && availableProfiles.length > 0 && (
-                  <div className="relative">
-                    <PersonIcon className="absolute top-3 left-3 text-gray-500" />
-                    <select
-                      name="selectedProfile"
-                      value={formData.selectedProfile}
-                      onChange={handleFormChange}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                      aria-label="Foydalanuvchi profilini tanlash"
-                    >
-                      <option value="">Profilni tanlang</option>
-                      {availableProfiles.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.user.username}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="relative">
-                  <PersonIcon className="absolute top-3 left-3 text-gray-500" />
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleFormChange}
-                    placeholder="Foydalanuvchi ismi"
-                    required
-                    autoComplete="username"
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                    aria-label="Foydalanuvchi ismi"
-                  />
-                </div>
-
-                {modalState.type === 'register' && (
-                  <>
-                    <div className="relative">
-                      <HomeIcon className="absolute top-3 left-3 text-gray-500" />
-                      <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleFormChange}
-                        placeholder="Manzil"
-                        required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                        aria-label="Manzil"
-                      />
-                    </div>
-                    <div className="relative">
-                      <PhoneIcon className="absolute top-3 left-3 text-gray-500" />
-                      <input
-                        type="tel"
-                        name="phone_number"
-                        value={formData.phone_number}
-                        onChange={handleFormChange}
-                        placeholder="+998901234567"
-                        required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                        aria-label="Telefon raqami"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <LocationOnIcon className="absolute top-3 left-3 text-gray-500" />
-                        <input
-                          type="text"
-                          name="location"
-                          value={formData.location}
-                          onChange={handleFormChange}
-                          placeholder="Joylashuv (masalan, Toshkent shahri)"
-                          required
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                          aria-label="Joylashuv"
-                        />
+                  {modalState.type === 'register' ? (
+                    <Card sx={{ borderRadius: '16px' }}>
+                      <CardContent sx={{ p: 4 }}>
+                        <Box display="flex" justifyContent="flex-end" mb={2}>
+                          <IconButton
+                            onClick={handleCloseModal}
+                            aria-label="Modalni yopish"
+                            sx={{ color: '#1976d2' }}
+                          >
+                            <CloseIcon />
+                          </IconButton>
+                        </Box>
+                        <Box display="flex" justifyContent="center" mb={3}>
+                          <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+                            <PersonIcon fontSize="large" />
+                          </Avatar>
+                        </Box>
+                        <Typography variant="h4" align="center" gutterBottom>
+                          Ro‘yxatdan o‘tish
+                        </Typography>
+                        <Box component="form" onSubmit={handleRegisterSubmit} sx={{ mt: 2 }}>
+                          <TextField
+                            fullWidth
+                            label="Foydalanuvchi ismi"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            required
+                            autoComplete="username"
+                            disabled={isFormLoading || !isOnline}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PersonIcon color="action" />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <TextField
+                            fullWidth
+                            label="Manzil"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            required
+                            disabled={isFormLoading || !isOnline}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <HomeIcon color="action" />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <TextField
+                            fullWidth
+                            label="Telefon raqami"
+                            name="phone_number"
+                            value={formData.phone_number}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            type="tel"
+                            required
+                            placeholder="+998901234567"
+                            disabled={isFormLoading || !isOnline}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PhoneIcon color="action" />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <TextField
+                              fullWidth
+                              label="Joylashuv (masalan, Toshkent shahri)"
+                              name="location"
+                              value={formData.location}
+                              onChange={handleFormChange}
+                              margin="normal"
+                              required
+                              placeholder="Toshkent shahri"
+                              disabled={isFormLoading || !isOnline}
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <LocationOnIcon color="action" />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                            <Tooltip title="Joriy joylashuvni aniqlash">
+                              <span>
+                                <IconButton
+                                  onClick={() => handleDetectLocation()}
+                                  disabled={isFormLoading || !isOnline}
+                                  color="primary"
+                                  sx={{ mt: 1 }}
+                                  aria-label="Joriy joylashuvni aniqlash"
+                                >
+                                  <MyLocationIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                          <TextField
+                            fullWidth
+                            label="Parol"
+                            name="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={formData.password}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            required
+                            autoComplete="new-password"
+                            disabled={isFormLoading || !isOnline}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <LockIcon color="action" />
+                                </InputAdornment>
+                              ),
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="Parolni ko‘rsatish/yashirish"
+                                    onClick={handleClickShowPassword}
+                                    edge="end"
+                                    disabled={isFormLoading || !isOnline}
+                                  >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          {isFormLoading && <LinearProgress sx={{ mt: 2, mb: 2, borderRadius: 4 }} />}
+                          <Button
+                            type="submit"
+                            fullWidth
+                            variant="contained"
+                            color="primary"
+                            sx={{ mt: 3, mb: 2, py: 1.5 }}
+                            disabled={isFormLoading || !isOnline}
+                          >
+                            {isFormLoading ? 'Yuklanmoqda...' : 'Ro‘yxatdan o‘tish'}
+                          </Button>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            color="secondary"
+                            sx={{ mb: 2, py: 1.5 }}
+                            onClick={() => handleOpenModal('login')}
+                            disabled={isFormLoading || !isOnline}
+                          >
+                            Tizimga kirish
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="bg-[#FFF3E0] w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 h-[90%] sm:h-auto overflow-y-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-[#FF6200]">Tizimga kirish</h2>
+                        <button
+                          onClick={handleCloseModal}
+                          className="text-[#FF6200] hover:text-[#FFAB40] transition-colors"
+                          aria-label="Modalni yopish"
+                        >
+                          <CloseIcon />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDetectLocation()}
-                        disabled={isFormLoading}
-                        className="text-[#FF6200] hover:text-[#FFAB40] transition-colors"
-                        title="Joriy joylashuvni aniqlash"
-                        aria-label="Joriy joylashuvni aniqlash"
-                      >
-                        <MyLocationIcon />
-                      </button>
+                      <div className="flex justify-center mb-6">
+                        <div className="bg-[#FF6200] rounded-full p-4">
+                          <PersonIcon className="text-white" fontSize="large" />
+                        </div>
+                      </div>
+                      <form onSubmit={handleLoginSubmit} className="space-y-4">
+                        {availableProfiles.length > 0 && (
+                          <div className="relative">
+                            <PersonIcon className="absolute top-3 left-3 text-gray-500" />
+                            <select
+                              name="selectedProfile"
+                              value={formData.selectedProfile}
+                              onChange={handleFormChange}
+                              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
+                              aria-label="Foydalanuvchi profilini tanlash"
+                              disabled={isFormLoading || !isOnline}
+                            >
+                              <option value="">Profilni tanlang</option>
+                              {availableProfiles.map((profile) => (
+                                <option key={profile.id} value={profile.id}>
+                                  {profile.user.username}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="relative">
+                          <PersonIcon className="absolute top-3 left-3 text-gray-500" />
+                          <input
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleFormChange}
+                            placeholder="Foydalanuvchi ismi"
+                            required
+                            autoComplete="username"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
+                            aria-label="Username"
+                            disabled={isFormLoading || !isOnline}
+                          />
+                        </div>
+                        <div className="relative">
+                          <LockIcon className="absolute top-3 left-3 text-gray-500" />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleFormChange}
+                            placeholder="Parol"
+                            required
+                            autoComplete="current-password"
+                            className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
+                            aria-label="Password"
+                            disabled={isFormLoading || !isOnline}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleClickShowPassword}
+                            className="absolute top-3 right-3 text-gray-500"
+                            aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
+                            disabled={isFormLoading || !isOnline}
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </button>
+                        </div>
+                        {isFormLoading && (
+                          <div className="h-1 w-full bg-gray-200 rounded">
+                            <div className="h-full bg-[#FF6200] rounded animate-pulse"></div>
+                          </div>
+                        )}
+                        <button
+                          type="submit"
+                          className="w-full bg-[#FF6200] text-white py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform disabled:bg-gray-400 disabled:cursor-not-allowed"
+                          disabled={isFormLoading || !isOnline}
+                        >
+                          {isFormLoading ? 'Yuklanmoqda...' : 'Kirish'}
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full border border-[#FFAB40] text-[#FFAB40] py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform disabled:bg-gray-200 disabled:cursor-not-allowed"
+                          onClick={() => handleOpenModal('register')}
+                          disabled={isFormLoading || !isOnline}
+                        >
+                          Ro‘yxatdan o‘tish
+                        </button>
+                      </form>
                     </div>
-                  </>
-                )}
-
-                <div className="relative">
-                  <LockIcon className="absolute top-3 left-3 text-gray-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleFormChange}
-                    placeholder="Parol"
-                    required
-                    autoComplete={modalState.type === 'register' ? 'new-password' : 'current-password'}
-                    className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
-                    aria-label="Parol"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleClickShowPassword}
-                    className="absolute top-3 right-3 text-gray-500"
-                    aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </button>
+                  )}
                 </div>
-
-                {isFormLoading && (
-                  <div className="h-1 w-full bg-gray-200 rounded">
-                    <div className="h-full bg-[#FF6200] rounded animate-pulse"></div>
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  className="w-full bg-[#FF6200] text-white py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  disabled={isFormLoading}
+              </Fade>
+              <Snackbar
+                open={!!formError || !!formSuccess}
+                autoHideDuration={6000}
+                onClose={handleFormClose}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+              >
+                <MuiAlert
+                  onClose={handleFormClose}
+                  severity={formError ? 'error' : 'success'}
+                  elevation={6}
+                  variant="filled"
+                  sx={{ borderRadius: 8 }}
                 >
-                  {isFormLoading
-                    ? 'Yuklanmoqda...'
-                    : modalState.type === 'register'
-                    ? "Ro'yxatdan o'tish"
-                    : 'Kirish'}
-                </button>
-                <button
-                  type="button"
-                  className="w-full border border-[#FFAB40] text-[#FFAB40] py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform disabled:bg-gray-200 disabled:cursor-not-allowed"
-                  onClick={() =>
-                    handleOpenModal(modalState.type === 'register' ? 'login' : 'register')
-                  }
-                  disabled={isFormLoading}
-                >
-                  {modalState.type === 'register' ? 'Tizimga kirish' : "Ro'yxatdan o'tish"}
-                </button>
-              </form>
+                  {formError || formSuccess}
+                </MuiAlert>
+              </Snackbar>
             </div>
-          </div>
+          </ThemeProvider>
         )}
 
-        {/* Snackbar for success/error messages */}
+        {/* Snackbar for logout messages */}
         {snackbar.open && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
             {snackbar.message}
             <button
-              onClick={handleSnackbarClose}
-              className="ml-4 text-white hover:text-gray-200"
-              aria-label="Xabarni yopish"
-            >
-              <CloseIcon fontSize="small" />
-            </button>
-          </div>
-        )}
-        {(formError || formSuccess) && (
-          <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white ${
-              formError ? 'bg-red-600' : 'bg-green-600'
-            } flex items-center`}
-          >
-            {formError || formSuccess}
-            <button
-              onClick={handleFormClose}
+              onClick={() => setSnackbar({ ...snackbar, open: false })}
               className="ml-4 text-white hover:text-gray-200"
               aria-label="Xabarni yopish"
             >

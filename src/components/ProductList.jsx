@@ -432,20 +432,17 @@ const ProductsList = () => {
                   style={{
                     background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
                   }}
-                  className="p-3 flex items-center justify-between"
+                  className="p-3 flex flex-col  items-start justify-between"
                 >
                   <h3 className="font-semibold text-center text-sm text-[#333] truncate" title={product.title}>
                     {product.title || 'Loading...'}
                   </h3>
-                  <span className="bg-[#FFF3E0] text-[#FF6200] text-xs px-2 py-0.5 rounded-full">
-                    {product.unit}
-                  </span>
+                 
                   <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
                     {product.description || 'Tavsif mavjud emas'}
                   </p>
                   <div className="mt-auto">
                     <div className="flex items-center mb-1">
-                      <PriceIcon className="w-4 h-4 mr-1 text-[#FF6200]" />
                       <span
                         className={`font-bold text-sm ${
                           parseFloat(product.discount) > 0

@@ -110,7 +110,7 @@ const ActiveOrdersDashboard = () => {
     if (!token) {
       setError('Tizimga kirish kerak');
       localStorage.setItem('authError', 'Tizimga kirish kerak.');
-      navigate('/login', { replace: true });
+      navigate('/profile', { replace: true });
       setLoading(false);
       return;
     }
@@ -128,7 +128,7 @@ const ActiveOrdersDashboard = () => {
           errorMessage = 'Sessiya tugagan';
           localStorage.setItem('authError', errorMessage);
           localStorage.removeItem('authToken');
-          navigate('/login', { replace: true });
+          navigate('/profile', { replace: true });
         } else {
           errorMessage = err.response.data?.detail || err.response.data?.message || 'Xato yuz berdi';
         }
@@ -150,7 +150,7 @@ const ActiveOrdersDashboard = () => {
 
     if (!token) {
       setError('Tizimga kirish kerak');
-      navigate('/login', { replace: true });
+      navigate('/profile', { replace: true });
       return;
     }
 
