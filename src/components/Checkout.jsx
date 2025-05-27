@@ -295,7 +295,7 @@ const Checkout = () => {
       if (response.data && response.data.id) {
         localStorage.removeItem('cart');
         setSuccess(`Buyurtma qabul qilindi! Raqam: #${response.data.id}`);
-        setTimeout(() => navigate('/orders'), 1500);
+        setTimeout(() => navigate('/status'), 1500);
       } else {
         throw new Error("Buyurtma yaratish xatosi");
       }
@@ -398,7 +398,7 @@ const Checkout = () => {
           <button onClick={handleBack} className="text-[#FF6200] hover:text-[#FFAB40] p-2">
             <ArrowBackIcon fontSize="small" />
           </button>
-          <h1 className="text-sm font-bold text-gray-800">Buyurtma berish</h1>
+          < airbags className="text-sm font-bold text-gray-800">Buyurtma berish</ airbags>
           <div className="w-6"></div> {/* Placeholder for alignment */}
         </div>
       </div>
@@ -519,7 +519,55 @@ const Checkout = () => {
 
             {/* Location Section */}
             <div className="mb-4 p-2 bg-[#FFF3E0] rounded-lg border border-orange-100">
-              <p className="text-xs flex items-center mb-2">
+               {/* Mobile Summary Bottom Sheet */}
+      <div
+        className={` bg-white rounded-t-2xl shadow-lg z-50  transition-all duration-300 ${
+          summaryExpanded ? 'h-[50%]' : 'h-16'
+        }`}
+      >
+        <div className="flex justify-between items-center p-4 bg-white rounded-t-2xl">
+          <div>
+            <p className="text-xs text-gray-600">Jami:</p>
+            <p className="text-base font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+          </div>
+          <button
+            onClick={() => setSummaryExpanded(!summaryExpanded)}
+            className="text-[#FF6200] hover:text-[#FFAB40]"
+          >
+            {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </button>
+        </div>
+        {summaryExpanded && (
+          <div className="p-4">
+          
+            <hr className="my-2 border-gray-200" />
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <p className="text-xs text-gray-600">Mahsulotlar:</p>
+                <p className="text-xs text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
+              </div>
+              {deliveryInfo.latitude && deliveryInfo.longitude && (
+                <div className="flex justify-between">
+                  <p className="text-xs text-gray-600">Yetkazib berish:</p>
+                  <p className="text-xs text-gray-600">{courierFee.toLocaleString()} so'm</p>
+                </div>
+              )}
+              {deliveryInfo.latitude && deliveryInfo.longitude && distance && (
+                <div className="flex justify-between">
+                  <p className="text-xs text-gray-600">Masofa:</p>
+                  <p className="text-xs text-gray-600">{distance} km</p>
+                </div>
+              )}
+              <hr className="my-1 border-gray-200" />
+              <div className="flex justify-between">
+                <p className="text-xs font-bold text-gray-800">Umumiy summa:</p>
+                <p className="text-sm font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+              <p className="text-xs flex items-center mt-4 mb-2">
                 <GpsFixedIcon className="text-[#FF6200] mr-1" style={{ fontSize: 16 }} />
                 Joylashuv
               </p>
@@ -568,6 +616,7 @@ const Checkout = () => {
                   )}
                 </div>
               )}
+              
             </div>
 
             <div className="relative mb-4">
@@ -701,75 +750,7 @@ const Checkout = () => {
         )}
       </div>
 
-      {/* Mobile Summary Bottom Sheet */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-50 sm:hidden transition-all duration-300 ${
-          summaryExpanded ? 'h-[50%]' : 'h-16'
-        }`}
-      >
-        <div className="flex justify-between items-center p-4 bg-white rounded-t-2xl">
-          <div>
-            <p className="text-xs text-gray-600">Jami:</p>
-            <p className="text-sm font-bold text-gray-800">{totalWithCourier.toLocaleString()} so'm</p>
-          </div>
-          <button
-            onClick={() => setSummaryExpanded(!summaryExpanded)}
-            className="text-[#FF6200] hover:text-[#FFAB40]"
-          >
-            {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </button>
-        </div>
-        {summaryExpanded && (
-          <div className="p-4">
-            <ul className="space-y-2 mb-4">
-              {cartItems.map((item, index) => (
-                <li key={index} className="flex items-center">
-                  <div className="relative mr-2">
-                    <img
-                      src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : undefined}
-                      alt={item.title}
-                      className="w-6 h-6 rounded object-cover"
-                      onError={(e) => (e.target.src = 'https://via.placeholder.com/24x24?text=No+Image')}
-                    />
-                    <span className="absolute -top-1 -right-1 bg-[#FF6200] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                      {item.quantity}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-800 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-600">{(item.price || 0).toLocaleString()} so'm</p>
-                  </div>
-                  <p className="text-xs font-bold text-gray-800">
-                    {(item.quantity * (item.price || 0)).toLocaleString()} so'm
-                  </p>
-                </li>
-              ))}
-            </ul>
-            <hr className="my-2 border-gray-200" />
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <p className="text-xs text-gray-600">Mahsulotlar:</p>
-                <p className="text-xs text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
-              </div>
-              <div className="flex justify-between">
-                <p className="text-xs text-gray-600">Yetkazib berish:</p>
-                <p className="text-xs text-gray-600">{courierFee.toLocaleString()} so'm</p>
-              </div>
-              {distance && (
-                <div className="flex justify-between">
-                  <p className="text-xs text-gray-600">Masofa:</p>
-                  <p className="text-xs text-gray-600">{distance} km</p>
-                </div>
-              )}
-              <hr className="my-1 border-gray-200" />
-              <div className="flex justify-between">
-                <p className="text-xs font-bold text-gray-800">Umumiy summa:</p>
-                <p className="text-xs font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+     
 
       {/* Dialogs */}
       {showLocationDialog && (

@@ -21,6 +21,9 @@ import { motion } from 'framer-motion';
 const ACTIVE_ORDERS_API = 'https://hosilbek.pythonanywhere.com/api/user/active-orders/';
 const BASE_URL = 'https://hosilbek.pythonanywhere.com';
 
+// Default avatar for missing product images
+const defaultAvatar = 'https://via.placeholder.com/32x32?text=No+Image';
+
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -29,15 +32,16 @@ class ErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
 
-
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-center">
-          <h2 className="text-2xl font-bold text-red-600">
-            Xatolik yuz berdi: {this.state.error?.message || 'Noma\'lum xatolik'}
-          </h2>
-          <p className="mt-4 text-gray-600">Iltimos, sahifani yangilang yoki qayta urinib ko‘ring.</p>
+        <div className="p-4 text-center bg-[#FFF3E0] min-h-screen flex items-center justify-center">
+          <div>
+            <h2 className="text-lg font-bold text-[#d32f2f] mb-2">
+              Xatolik yuz berdi: {this.state.error?.message || "Noma'lum xatolik"}
+            </h2>
+            <p className="text-xs text-gray-600">Iltimos, sahifani yangilang yoki qayta urinib ko‘ring.</p>
+          </div>
         </div>
       );
     }
@@ -60,37 +64,37 @@ const ActiveOrdersDashboard = () => {
     () => ({
       buyurtma_tushdi: {
         label: 'Yangi',
-        color: '#1976d2',
+        color: '#FF6200', // Matches Checkout primary
         icon: <AccessTime fontSize="small" />,
         message: 'Buyurtma qabul qilindi!',
       },
       oshxona_vaqt_belgiladi: {
         label: 'Tayyorlanmoqda',
-        color: '#0288d1',
+        color: '#0288d1', // Complements orange theme
         icon: <AccessTime fontSize="small" />,
         message: 'Oshxonada tayyorlanmoqda.',
       },
       kuryer_oldi: {
         label: 'Kuryer oldi',
-        color: '#7b1fa2',
+        color: '#FFAB40', // Matches Checkout secondary
         icon: <CheckCircle fontSize="small" />,
         message: 'Kuryer buyurtmani oldi.',
       },
       kuryer_yolda: {
         label: 'Yetkazilmoqda',
-        color: '#f57c00',
+        color: '#f57c00', // Complements orange theme
         icon: <LocalShipping fontSize="small" />,
         message: 'Buyurtma yetkazilmoqda!',
       },
       buyurtma_topshirildi: {
         label: 'Yetkazildi',
-        color: '#388e3c',
+        color: '#388e3c', // Matches Checkout success
         icon: <CheckCircle fontSize="small" />,
         message: 'Buyurtma yetkazildi. Rahmat!',
       },
       qaytarildi: {
         label: 'Qaytarildi',
-        color: '#d32f2f',
+        color: '#d32f2f', // Matches Checkout error
         icon: <Cancel fontSize="small" />,
         message: 'Buyurtma qaytarildi.',
       },
@@ -181,11 +185,11 @@ const ActiveOrdersDashboard = () => {
     };
     return (
       <span
-        className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold border"
+        className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold border"
         style={{ color: config.color, borderColor: config.color }}
       >
         {config.icon}
-        {config.label}
+        <span className="ml-1">{config.label}</span>
       </span>
     );
   };
@@ -197,10 +201,12 @@ const ActiveOrdersDashboard = () => {
     statusMap[status]?.color || '#6b7280';
 
   const formatTime = (kitchenTime) => {
-    if (!kitchenTime) return 'Noma’ Justine';
+    if (!kitchenTime) return 'Noma’lum';
     if (typeof kitchenTime === 'string' && kitchenTime.includes(':')) {
       const [hours, minutes] = kitchenTime.split(':').map(Number);
-      return `${hours > 0 ? `${hours} soat ` : ''}${minutes > 0 ? `${minutes} min` : ''}`.trim();
+      return (
+        `${hours > 0 ? `${hours} soat ` : ''}${minutes > 0 ? `${minutes} min` : ''}`.trim()
+      );
     }
     const hours = Math.floor(kitchenTime / 60);
     const mins = kitchenTime % 60;
@@ -223,7 +229,7 @@ const ActiveOrdersDashboard = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => order.id.toString().includes(searchQuery));
-  }, [orders, searchQuery]);
+  }, [searchQuery, orders]);
 
   const handleOpenModal = (type, order = null) => {
     setModalState({ type, order });
@@ -233,10 +239,21 @@ const ActiveOrdersDashboard = () => {
     setModalState({ type: null, order: null });
   };
 
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') return;
+  const handleSnackbarClose = () => {
     setError('');
     setSuccess('');
+  };
+
+  // Handle drag end to close modal based on drag distance or velocity
+  const handleDragEnd = (event, info) => {
+    const dragDistance = info.offset.y;
+    const dragVelocity = info.velocity.y;
+    const closeThreshold = window.innerHeight * 0.3; // Close if dragged 30% of screen height
+    const velocityThreshold = 500; // Close if drag velocity is high
+
+    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
+      handleCloseModal();
+    }
   };
 
   if (loading && orders.length === 0) {
@@ -264,7 +281,7 @@ const ActiveOrdersDashboard = () => {
                 d="M4 12a8 8 0 018-8v8h-8z"
               />
             </svg>
-            <h2 className="mt-4 text-xl text-gray-600">Buyurtmalar yuklanmoqda...</h2>
+            <h2 className="mt-4 text-sm text-gray-600">Buyurtmalar yuklanmoqda...</h2>
           </div>
         </div>
       </ErrorBoundary>
@@ -273,37 +290,37 @@ const ActiveOrdersDashboard = () => {
 
   return (
     <ErrorBoundary>
-      <div className=" bg-[#FFF3E0] pb-8">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#FFF3E0] pb-16">
+        <div className="max-w-[400px] mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
             {/* Header */}
-            <div className="mt-16 sm:mt-20">
-              <h1 className="text-2xl font-bold text-[#FF6200]">Buyurtmalar</h1>
-              <p className="mt-2 text-gray-600 text-sm">
+            <div className="mt-12">
+              <h1 className="text-base font-bold text-[#FF6200]">Buyurtmalar</h1>
+              <p className="mt-1 text-xs text-gray-600">
                 Buyurtma holatini kuzating yoki ID bo‘yicha qidiring.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                <div className="relative flex-1">
-                  <Search className="absolute top-3 left-3 text-gray-500" fontSize="small" />
+              <div className="flex flex-col gap-2 mt-3">
+                <div className="relative">
+                  <Search className="absolute top-2.5 left-3 text-gray-500" fontSize="small" />
                   <input
                     type="text"
                     placeholder="Buyurtma ID"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
+                    className="w-full pl-10 pr-4 py-2 text-xs border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
                     aria-label="Buyurtma ID bo‘yicha qidirish"
                   />
                 </div>
                 <button
-                  className="bg-[#FF6200] text-white px-6 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center"
+                  className="bg-[#FF6200] text-white px-4 py-2 rounded-lg text-xs font-medium shadow-md hover:bg-[#FFAB40] hover:scale-105 transition-all flex items-center justify-center"
                   onClick={fetchOrders}
                 >
                   <svg
-                    className="mr-2 h-4 w-4"
+                    className="mr-1 h-4 w-4"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -322,75 +339,73 @@ const ActiveOrdersDashboard = () => {
             </div>
 
             {/* Orders List */}
-            <div className="mt-6">
+            <div className="mt-4 space-y-3">
               {filteredOrders.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-xl p-6 text-center">
-                  <p className="text-gray-600 mb-4">Faol buyurtma yo‘q</p>
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 text-center">
+                  <p className="text-xs text-gray-600 mb-3">Faol buyurtma yo‘q</p>
                   <button
-                    className="bg-[#FF6200] text-white px-6 py-3 rounded-lg font-medium shadow-md hover:scale-105 transition-transform"
+                    className="bg-[#FF6200] text-white px-4 py-2 rounded-lg text-xs font-medium shadow-md hover:bg-[#FFAB40] hover:scale-105 transition-all"
                     onClick={() => navigate('/')}
                   >
                     Buyurtma berish
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredOrders.map((order) => (
-                    <motion.div
-                      key={order.id}
-                      className="bg-white rounded-2xl shadow-xl p-6 cursor-pointer"
-                      onClick={() => handleOpenModal('order', order)}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-gray-800">
-                          Buyurtma #{order.id}
-                        </h2>
-                        <div className="flex items-center gap-2">
-                          {getStatusChip(order.status)}
-                          <button
-                            className="text-[#FF6200] hover:text-[#FFAB40]"
-                            aria-label="Buyurtma tafsilotlarini ko‘rish"
-                          >
-                            {modalState.order?.id === order.id ? (
-                              <ExpandLess fontSize="small" />
-                            ) : (
-                              <ExpandMore fontSize="small" />
-                            )}
-                          </button>
-                        </div>
+                filteredOrders.map((order) => (
+                  <motion.div
+                    key={order.id}
+                    className="bg-white rounded-2xl shadow-md border border-gray-100 p-4"
+                    onClick={() => handleOpenModal('order', order)}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-sm font-bold text-gray-800">
+                        Buyurtma #{order.id}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        {getStatusChip(order.status)}
+                        <button
+                          className="text-[#FF6200] hover:text-[#FFAB40]"
+                          aria-label="Buyurtma tafsilotlarini ko‘rish"
+                        >
+                          {modalState.order?.id === order.id ? (
+                            <ExpandLess fontSize="small" />
+                          ) : (
+                            <ExpandMore fontSize="small" />
+                          )}
+                        </button>
                       </div>
-                      <p className="text-sm text-gray-600 mt-2">
-                        {getStatusMessage(order.status)}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {getEstimatedDelivery(order.kitchen_time, order.created_at)}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
-                      </p>
-                      <button
-                        className="mt-4 border border-[#FF6200] text-[#FF6200] px-4 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          returnOrder(order.id);
-                        }}
-                        disabled={isReturnDisabled(order.status)}
-                      >
-                        <Cancel className="mr-2" fontSize="small" />
-                        Qaytarish
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {getStatusMessage(order.status)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {getEstimatedDelivery(order.kitchen_time, order.created_at)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                    </p>
+                    <button
+                      className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        returnOrder(order.id);
+                      }}
+                      disabled={isReturnDisabled(order.status)}
+                    >
+                      <Cancel className="mr-1" fontSize="small" />
+                      Qaytarish
+                    </button>
+                  </motion.div>
+                ))
               )}
             </div>
 
             {/* Last Fetch Time */}
             {lastFetch && (
-              <p className="mt-4 text-center text-sm text-gray-500">
+              <p className="mt-3 text-center text-xs text-gray-500">
                 Yangilandi: {new Date(lastFetch).toLocaleString('uz-UZ')}
               </p>
             )}
@@ -399,16 +414,33 @@ const ActiveOrdersDashboard = () => {
 
         {/* Modal for Order Details */}
         {modalState.type === 'order' && modalState.order && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
             onClick={handleCloseModal}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
-            <div
-              className="bg-[#FFF3E0] w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 h-[90%] sm:h-auto overflow-y-auto"
+            <motion.div
+              className="bg-white w-full max-w-[400px] rounded-t-2xl p-4 h-[90%] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+              onDragEnd={handleDragEnd}
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#FF6200]">
+              {/* Drag Handle */}
+              <div className="flex justify-center mb-2">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-sm font-bold text-[#FF6200]">
                   Buyurtma #{modalState.order.id}
                 </h2>
                 <button
@@ -416,159 +448,161 @@ const ActiveOrdersDashboard = () => {
                   className="text-[#FF6200] hover:text-[#FFAB40] transition-colors"
                   aria-label="Modalni yopish"
                 >
-                  <CloseIcon />
+                  <CloseIcon fontSize="small" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Holati</p>
-                  <p className="text-sm text-gray-600">{getStatusMessage(modalState.order.status)}</p>
-                  {getStatusChip(modalState.order.status)}
+                  <p className="text-xs font-semibold text-gray-700">Holati</p>
+                  <p className="text-xs text-gray-600">{getStatusMessage(modalState.order.status)}</p>
+                  <div className="mt-1">{getStatusChip(modalState.order.status)}</div>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Yetkazish vaqti</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs font-semibold text-gray-700">Yetkazish vaqti</p>
+                  <p className="text-xs text-gray-600">
                     {getEstimatedDelivery(modalState.order.kitchen_time, modalState.order.created_at)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Jami</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs font-semibold text-gray-700">Jami</p>
+                  <p className="text-xs text-gray-600">
                     {parseFloat(modalState.order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
                   </p>
                 </div>
-                <hr className="border-gray-300" />
+                <hr className="border-gray-200" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Tafsilotlar</p>
-                  <ul className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-700">Tafsilotlar</p>
+                  <ul className="space-y-2 mt-1">
                     <li className="flex items-center">
-                      <Phone className="text-[#FF6200] mr-3" fontSize="small" />
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          {modalState.order.contact_number || 'Noma’lum'}
-                        </p>
-                      </div>
+                      <Phone className="text-[#FF6200] mr-2" fontSize="small" />
+                      <p className="text-xs text-gray-600">
+                        {modalState.order.contact_number || 'Noma’lum'}
+                      </p>
                     </li>
                     <li className="flex items-center">
-                      <LocationOn className="text-[#FF6200] mr-3" fontSize="small" />
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          {modalState.order.shipping_address || 'Noma’lum'}
-                        </p>
-                      </div>
+                      <LocationOn className="text-[#FF6200] mr-2" fontSize="small" />
+                      <p className="text-xs text-gray-600">
+                        {modalState.order.shipping_address || 'Noma’lum'}
+                      </p>
                     </li>
                     <li className="flex items-center">
-                      <Payment className="text-[#FF6200] mr-3" fontSize="small" />
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          To‘lov:{' '}
-                          {modalState.order.payment === 'naqd'
-                            ? 'Naqd'
-                            : modalState.order.payment === 'karta'
-                            ? 'Karta'
-                            : 'Noma’lum'}
-                        </p>
-                      </div>
+                      <Payment className="text-[#FF6200] mr-2" fontSize="small" />
+                      <p className="text-xs text-gray-600">
+                        To‘lov:{' '}
+                        {modalState.order.payment === 'naqd'
+                          ? 'Naqd'
+                          : modalState.order.payment === 'karta'
+                          ? 'Karta'
+                          : 'Noma’lum'}
+                      </p>
                     </li>
                     {modalState.order.notes && (
                       <li className="flex items-center">
-                        <div>
-                          <p className="text-sm text-gray-600">Izoh: {modalState.order.notes}</p>
-                        </div>
+                        <p className="text-xs text-gray-600">Izoh: {modalState.order.notes}</p>
                       </li>
                     )}
                     {modalState.order.status === 'kuryer_oldi' && (
                       <>
                         <li className="flex items-center">
-                          <PersonIcon className="text-[#FF6200] mr-3" fontSize="small" />
-                          <div>
-                            <p className="text-sm text-gray-600">
-                              Kuryer: {modalState.order.courier?.user.username || 'Ma’lumot mavjud emas'}
-                            </p>
-                          </div>
+                          <PersonIcon className="text-[#FF6200] mr-2" fontSize="small" />
+                          <p className="text-xs text-gray-600">
+                            Kuryer: {modalState.order.courier?.user.username || 'Ma’lumot mavjud emas'}
+                          </p>
                         </li>
                         <li className="flex items-center">
-                          <Phone className="text-[#FF6200] mr-3" fontSize="small" />
-                          <div>
-                            {modalState.order.courier?.phone_number ? (
-                              <a
-                                href={`tel:${modalState.order.courier.phone_number}`}
-                                className="text-sm text-[#FF6200] hover:underline"
-                                aria-label={`Call courier at ${modalState.order.courier.phone_number}`}
-                              >
-                                Kuryer telefoni: {modalState.order.courier.phone_number}
-                              </a>
-                            ) : (
-                              <p className="text-sm text-gray-600">
-                                Kuryer telefoni: Ma’lumot mavjud emas
-                              </p>
-                            )}
-                          </div>
+                          <Phone className="text-[#FF6200] mr-2" fontSize="small" />
+                          {modalState.order.courier?.phone_number ? (
+                            <a
+                              href={`tel:${modalState.order.courier.phone_number}`}
+                              className="text-xs text-[#FF6200] hover:underline"
+                              aria-label={`Call courier at ${modalState.order.courier.phone_number}`}
+                            >
+                              Kuryer telefoni: {modalState.order.courier.phone_number}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-gray-600">
+                              Kuryer telefoni: Ma’lumot mavjud emas
+                            </p>
+                          )}
                         </li>
                       </>
                     )}
                   </ul>
                 </div>
-                <hr className="border-gray-300" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">
+                <hr className="border-gray-200" />
+                <div className="mb-8 border-b border-gray-200 pb-4">
+                  <p className="text-xs font-semibold text-gray-700">
                     Mahsulotlar ({modalState.order.items?.length || 0})
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 mt-1">
                     {modalState.order.items && modalState.order.items.length > 0 ? (
                       modalState.order.items.map((item, index) => (
                         <li key={index} className="flex items-center">
-                          <img
-                            src={item.product?.photo ? `${BASE_URL}${item.product.photo}` : defaultAvatar}
-                            alt={item.product?.title || 'Mahsulot'}
-                            className="w-8 h-8 rounded mr-3 object-cover"
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-600">{item.product?.title || 'Noma’lum'}</p>
-                            <p className="text-sm text-gray-500">
-                              {item.quantity} × {parseFloat(item.price || 0).toLocaleString('uz-UZ')} so‘m
+                          <div className="flex items-center">
+                            <img
+                              src={item.product?.photo ? `${BASE_URL}${item.product?.photo}` : defaultAvatar}
+                              alt={item.product?.title || 'Mahsulot'}
+                              className="w-6 h-6 rounded mr-2 object-cover"
+                              onError={(e) => (e.target.src = defaultAvatar)}
+                            />
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-600">{item.product?.title || 'Noma’lum'}</p>
+                              <p className="text-xs text-gray-500">
+                                {item.quantity} × {parseFloat(item.price || 0).toLocaleString('uz-UZ')} so‘m
+                              </p>
+                            </div>
+                            <p className="text-xs font-bold text-gray-600">
+                              {(item.quantity * parseFloat(item.price || 0)).toLocaleString('uz-UZ')} so‘m
                             </p>
                           </div>
-                          <p className="text-sm font-bold text-gray-600">
-                            {(item.quantity * parseFloat(item.price || 0)).toLocaleString('uz-UZ')} so‘m
-                          </p>
                         </li>
                       ))
                     ) : (
-                      <p className="text-sm text-gray-600">Mahsulot yo‘q</p>
+                      <p className="text-xs text-gray-600">Mahsulot yo‘q</p>
                     )}
+                    ) : (
+                      <p className="text-xs text-gray-600">Mahsulot yo‘q</p>
                   </ul>
                 </div>
                 <button
-                  className="mt-4 border border-[#FF6200] text-[#FF6200] px-4 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                  className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
                   onClick={() => returnOrder(modalState.order.id)}
                   disabled={isReturnDisabled(modalState.order.status)}
                 >
-                  <Cancel className="mr-2" fontSize="small" />
+                  <Cancel className="mr-1" fontSize="small" />
                   Qaytarish
                 </button>
+                  className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                <button onClick={() => returnOrder(modalState.order.id)}
+                  disabled={isReturnDisabled(modalState.order.status)}
+                >
+                  <Cancel className="mr-1" fontSize="small" />
+                  Qaytarish
+                </button>
+               
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Snackbar for success/error messages */}
         {(error || success) && (
-          <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white ${
-              error ? 'bg-red-600' : 'bg-green-600'
-            } flex items-center`}
+          <motion.div
+            className={`fixed top-4 left-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white text-xs flex items-center justify-between ${error ? 'bg-[#d32f2f]' : 'bg-[#388e3c]'}`}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            { Jewelry || success}
+            <span>{error || success}</span>
             <button
               onClick={handleSnackbarClose}
-              className="ml-4 text-white hover:text-gray-200"
+              className="text-white hover:text-gray-200"
               aria-label="Xabarni yopish"
             >
               <CloseIcon fontSize="small" />
             </button>
-          </div>
+          </motion.div>
         )}
       </div>
     </ErrorBoundary>

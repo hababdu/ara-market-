@@ -12,6 +12,7 @@ import {
   Close as CloseIcon,
   ShoppingCart as CartIcon,
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 
 // Shuffle function for products
 const shuffleArray = (array) => {
@@ -140,8 +141,9 @@ const ProductsList = () => {
 
     const buttonWidth = 64;
     const buttonHeight = 64;
+    const navBarHeight = 60; // Height of bottom navigation bar from Layout
     newX = Math.max(0, Math.min(newX, window.innerWidth - buttonWidth));
-    newY = Math.max(0, Math.min(newY, window.innerHeight - buttonHeight));
+    newY = Math.max(0, Math.min(newY, window.innerHeight - buttonHeight - navBarHeight));
 
     setCartPosition({ x: newX, y: newY });
   };
@@ -224,6 +226,23 @@ const ProductsList = () => {
       setSelectedProduct(null);
     }, 1500);
   }, [selectedProduct, quantity, cartPosition]);
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setSelectedProduct(null);
+  };
+
+  // Handle modal drag end
+  const handleModalDragEnd = (event, info) => {
+    const dragDistance = info.offset.y;
+    const dragVelocity = info.velocity.y;
+    const closeThreshold = window.innerHeight * 0.3; // Close if dragged 30% of screen height
+    const velocityThreshold = 500; // Close if drag velocity is high
+
+    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
+      handleCloseModal();
+    }
+  };
 
   if (loading) {
     return (
@@ -393,17 +412,17 @@ const ProductsList = () => {
                     <img
                       src={`https://hosilbek.pythonanywhere.com${product.photo}`}
                       alt={product.title || 'Mahsulot rasmi'}
-                      className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="absolute top-0 left-0 w-full h-full bg-object-cover transition-transform duration-300 hover:scale-100"
                     />
                   ) : (
                     <div className="absolute top-0 left-0 w-full h-full bg-[#FFF3E0] flex items-center justify-center">
-                      <FastfoodIcon className="w-12 h-12 text-[#FFAB40]" />
+                      <FastfoodIcon className="w-12 h-12" />
                     </div>
                   )}
                   {parseFloat(product.discount) > 0 && (
                     <div className="absolute top-2 right-2 bg-[#FF6200] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
                       <DiscountIcon className="w-3 h-3 mr-1" />
-                      {Math.round((parseFloat(product.discount) / parseFloat(product.price)) * 100)}%
+                      {Math.round((parseFloat(product.discount) - parseFloat(product.price)) * 100)}%
                     </div>
                   )}
                 </div>
@@ -413,16 +432,14 @@ const ProductsList = () => {
                   style={{
                     background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
                   }}
-                  className="p-3 flex-grow flex flex-col"
+                  className="p-3 flex items-center justify-between"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-sm text-[#333] truncate" title={product.title}>
-                      {product.title || 'Yangi mahsulot'}
-                    </h3>
-                    <span className="bg-[#FFF3E0] text-[#FF6200] text-xs px-2 py-0.5 rounded-full">
-                      {product.unit}
-                    </span>
-                  </div>
+                  <h3 className="font-semibold text-center text-sm text-[#333] truncate" title={product.title}>
+                    {product.title || 'Loading...'}
+                  </h3>
+                  <span className="bg-[#FFF3E0] text-[#FF6200] text-xs px-2 py-0.5 rounded-full">
+                    {product.unit}
+                  </span>
                   <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
                     {product.description || 'Tavsif mavjud emas'}
                   </p>
@@ -454,18 +471,35 @@ const ProductsList = () => {
 
       {/* Product Modal */}
       {selectedProduct && (
-        <div
+        <motion.div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
-          onClick={() => setSelectedProduct(null)}
+          onClick={handleCloseModal}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
-          <div
+          <motion.div
             className="bg-[#FFF3E0] w-full rounded-t-2xl p-4 h-[90%] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.2}
+            dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+            onDragEnd={handleModalDragEnd}
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
+            {/* Drag Handle */}
+            <div className="flex justify-center mb-2">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-[#FF6200]">{selectedProduct.title}</h2>
               <button
-                onClick={() => setSelectedProduct(null)}
+                onClick={handleCloseModal}
                 className="text-[#FF6200] hover:text-[#FFAB40]"
                 aria-label="Modalni yopish"
               >
@@ -548,24 +582,25 @@ const ProductsList = () => {
                 Savatga qo'shish
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Draggable Floating Cart Button */}
-      <button
+      <motion.button
         onClick={() => navigate('/cart')}
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
-        className={`fixed z-50 bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform ${
+        className={`fixed z-[60] bg-gradient-to-r from-[#FF6200] to-[#FFAB40] text-white p-4 rounded-full shadow-lg transition-transform ${
           isDragging ? 'cursor-grabbing' : 'cursor-pointer'
-        }`}
+        } hover:scale-110`}
         style={{
           left: `${cartPosition.x}px`,
           top: `${cartPosition.y}px`,
           touchAction: 'none',
         }}
         aria-label="Savat"
+        whileTap={{ scale: 0.9 }}
       >
         <div className="relative">
           <CartIcon className="w-6 h-6" />
@@ -575,7 +610,7 @@ const ProductsList = () => {
             </span>
           )}
         </div>
-      </button>
+      </motion.button>
 
       {/* Animation Elements */}
       {animations.map((anim) => (
