@@ -144,30 +144,6 @@ const Layout = () => {
         </button>
       </nav>
 
-      <button
-        onClick={() => handleNavigate('/cart')}
-        onMouseDown={handleDragStart}
-        onTouchStart={handleDragStart}
-        className={`cart-button fixed text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform z-50 md:hidden ${
-          isDragging ? 'cursor-grabbing' : 'cursor-pointer'
-        } ${cartCount > 0 ? 'animate-cart-shake' : ''}`} // Add shake animation when cartCount changes
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          background: 'linear-gradient(90deg, #FF6200, #FFAB40)',
-          touchAction: 'none',
-        }}
-        aria-label="Savat"
-      >
-        <div className="relative">
-          <CartIcon className="w-6 h-6" />
-          {cartCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {cartCount > 9 ? '9+' : cartCount}
-            </span>
-          )}
-        </div>
-      </button>
     </div>
   );
 };
