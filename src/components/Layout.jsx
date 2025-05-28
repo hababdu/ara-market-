@@ -125,7 +125,7 @@ const Layout = () => {
           }
         `}
       </style>
-      <main className="flex-1 max-w-6xl mx-auto md:mt-20 mb-16 px-4">
+      <main className="flex-1 max-w-6xl mx-auto md:mt-20 mb-16 ">
         <Outlet />
       </main>
 
