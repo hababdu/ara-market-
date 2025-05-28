@@ -391,7 +391,7 @@ const Checkout = () => {
   const totalWithCourier = calculateTotal + (courierFee || MIN_DELIVERY_FEE);
 
   return (
-    <div className="max-w-xs mx-auto py-6 pb-[120px] sm:pb-6">
+    <div className=" mx-auto py-6 pb-[120px] sm:pb-6">
       {/* Fixed Top Bar */}
       <div className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="flex items-center justify-between px-4 py-2">
