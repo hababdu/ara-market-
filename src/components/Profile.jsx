@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -86,14 +86,15 @@ const defaultAvatar = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-prof
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
+  state = { hasError: false, error: null, errorInfo: null };
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('ErrorBoundary caught:', error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
@@ -104,6 +105,14 @@ class ErrorBoundary extends React.Component {
             Xatolik yuz berdi: {this.state.error?.message || 'Noma\'lum xatolik'}
           </h2>
           <p className="mt-4 text-gray-600">Iltimos, sahifani yangilang yoki qayta urinib ko‘ring.</p>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => window.location.reload()}
+            sx={{ mt: 2 }}
+          >
+            Qayta yuklash
+          </Button>
         </div>
       );
     }
@@ -133,6 +142,7 @@ const ProfilePage = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+  const isMounted = useRef(true);
 
   // Monitor network status
   useEffect(() => {
@@ -148,8 +158,15 @@ const ProfilePage = () => {
     };
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // Refresh token function
-  const refreshAccessToken = async () => {
+  const refreshAccessToken = useCallback(async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
       return false;
@@ -170,10 +187,10 @@ const ProfilePage = () => {
       localStorage.removeItem('userData');
       return false;
     }
-  };
+  }, []);
 
   // Generic API request with retry and token refresh
-  const makeAuthenticatedRequest = async (config, retries = 1) => {
+  const makeAuthenticatedRequest = useCallback(async (config, retries = 1) => {
     let attempt = 0;
     while (attempt <= retries) {
       try {
@@ -199,20 +216,15 @@ const ProfilePage = () => {
         throw err;
       }
     }
-  };
+  }, [refreshAccessToken]);
 
+  // Fetch user data and profiles
   useEffect(() => {
-    let isMounted = true;
-
     const fetchUserData = async () => {
       try {
         setLoading(true);
         if (!token) {
-          if (isMounted) {
-            setError('Tizimga kirish talab qilinadi');
-            setLoading(false);
-          }
-          return;
+          throw new Error('Tizimga kirish talab qilinadi');
         }
 
         const response = await makeAuthenticatedRequest({
@@ -232,7 +244,7 @@ const ProfilePage = () => {
           throw new Error('Profil ma\'lumotlari topilmadi');
         }
 
-        if (isMounted) {
+        if (isMounted.current) {
           setUserData({
             ...profileData,
             avatar: profileData.avatar || defaultAvatar,
@@ -252,16 +264,17 @@ const ProfilePage = () => {
           localStorage.removeItem('authToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('userData');
+          navigate('/login');
         } else if (err.response?.status === 404 || err.message === 'Profil ma\'lumotlari topilmadi') {
           errorMessage = 'Profil ma\'lumotlari topilmadi';
         } else if (err.response?.status === 500) {
           errorMessage = 'Server xatosi. Keyinroq urinib ko\'ring';
         }
-        if (isMounted) {
+        if (isMounted.current) {
           setError(errorMessage);
         }
       } finally {
-        if (isMounted) {
+        if (isMounted.current) {
           setLoading(false);
         }
       }
@@ -275,16 +288,14 @@ const ProfilePage = () => {
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (Array.isArray(response.data) && isMounted) {
+        if (Array.isArray(response.data) && isMounted.current) {
           setAvailableProfiles(response.data);
-        } else {
-          if (isMounted) {
-            setAvailableProfiles([]);
-          }
+        } else if (isMounted.current) {
+          setAvailableProfiles([]);
         }
       } catch (err) {
         console.error('Fetch available profiles error:', err.response?.data || err.message);
-        if (isMounted) {
+        if (isMounted.current) {
           setAvailableProfiles([]);
           setError('Foydalanuvchi profillarini yuklashda xato yuz berdi');
         }
@@ -293,13 +304,9 @@ const ProfilePage = () => {
 
     fetchUserData();
     fetchAvailableProfiles();
+  }, [navigate, token, makeAuthenticatedRequest]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate, token]);
-
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
@@ -307,14 +314,14 @@ const ProfilePage = () => {
     setModalState({ type: null });
     setSnackbar({ open: true, message: 'Tizimdan chiqildi!', severity: 'success' });
     navigate('/');
-  };
+  }, [navigate]);
 
-  const handleFormChange = (e) => {
+  const handleFormChange = useCallback((e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-  const handleDetectLocation = (retries = 3, delay = 2000) => {
+  const handleDetectLocation = useCallback((retries = 3, delay = 2000) => {
     setIsFormLoading(true);
     setFormError('');
 
@@ -327,13 +334,15 @@ const ProfilePage = () => {
     const attemptLocation = (attemptsLeft) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          if (!isMounted.current) return;
           const { latitude, longitude } = position.coords;
           const location = `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`;
-          setFormData({ ...formData, location });
+          setFormData(prev => ({ ...prev, location }));
           setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
           setIsFormLoading(false);
         },
         (err) => {
+          if (!isMounted.current) return;
           console.error('Geolokatsiya xatosi:', err.message, 'Kod:', err.code);
           if (err.code === 1) {
             setFormError("Joylashuvga ruxsat berilmadi. Qo'lda kiriting.");
@@ -355,13 +364,13 @@ const ProfilePage = () => {
     };
 
     attemptLocation(retries);
-  };
+  }, []);
 
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
+  const handleClickShowPassword = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
-  const handleRegisterSubmit = async (e) => {
+  const handleRegisterSubmit = useCallback(async (e) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
@@ -425,11 +434,15 @@ const ProfilePage = () => {
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
 
-      setFormSuccess("Ro'yxatdan o'tish muvaffaqiyatli! Profil sahifasiga o'tilmoqda...");
-      setTimeout(() => {
-        handleCloseModal();
-        navigate('/profile');
-      }, 2000);
+      if (isMounted.current) {
+        setFormSuccess("Ro'yxatdan o'tish muvaffaqiyatli! Profil sahifasiga o'tilmoqda...");
+        setTimeout(() => {
+          if (isMounted.current) {
+            setModalState({ type: null });
+            navigate('/profile');
+          }
+        }, 2000);
+      }
     } catch (err) {
       console.error('Registration Error:', err.message, err.response?.data);
       let errorMessage = "Ro'yxatdan o'tishda xatolik yuz berdi.";
@@ -446,13 +459,14 @@ const ProfilePage = () => {
       } else if (err.request || err.message.includes('Network Error')) {
         errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
       }
-      setFormError(errorMessage);
-    } finally {
-      setIsFormLoading(false);
+      if (isMounted.current) {
+        setFormError(errorMessage);
+        setIsFormLoading(false);
+      }
     }
-  };
+  }, [formData, isOnline, navigate]);
 
-  const handleLoginSubmit = async (e) => {
+  const handleLoginSubmit = useCallback(async (e) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
@@ -490,11 +504,15 @@ const ProfilePage = () => {
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('refreshToken', refreshToken);
 
-      setFormSuccess('Tizimga kirish muvaffaqiyatli!');
-      setTimeout(() => {
-        handleCloseModal();
-        window.location.reload();
-      }, 2000);
+      if (isMounted.current) {
+        setFormSuccess('Tizimga kirish muvaffaqiyatli!');
+        setTimeout(() => {
+          if (isMounted.current) {
+            setModalState({ type: null });
+            navigate('/profile');
+          }
+        }, 2000);
+      }
     } catch (err) {
       console.error('Login Error:', err.message, err.response?.data);
       let errorMessage = 'Tizimga kirishda xatolik yuz berdi.';
@@ -509,23 +527,24 @@ const ProfilePage = () => {
       } else if (err.request || err.message.includes('Network Error')) {
         errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
       }
-      setFormError(errorMessage);
-    } finally {
-      setIsFormLoading(false);
+      if (isMounted.current) {
+        setFormError(errorMessage);
+        setIsFormLoading(false);
+      }
     }
-  };
+  }, [formData, isOnline, navigate]);
 
-  const handleFormClose = (event, reason) => {
+  const handleFormClose = useCallback((event, reason) => {
     if (reason === 'clickaway') return;
     setFormError('');
     setFormSuccess('');
-  };
+  }, []);
 
-  const handleOpenModal = (type) => {
+  const handleOpenModal = useCallback((type) => {
     setModalState({ type });
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setModalState({ type: null });
     setFormData({
       username: '',
@@ -537,7 +556,7 @@ const ProfilePage = () => {
     });
     setFormError('');
     setFormSuccess('');
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -592,13 +611,14 @@ const ProfilePage = () => {
                   <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 sm:-translate-y-1/3">
                     <img
                       src={userData.avatar}
-                      alt={userData.user.username || 'Foydalanuvchi'}
+                      alt={userData.user?.username || 'Foydalanuvchi'}
                       className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover"
+                      onError={(e) => (e.target.src = defaultAvatar)}
                     />
                   </div>
                   <div className="pt-16 pb-6 text-center">
                     <h2 className="text-2xl font-bold text-gray-800">
-                      {userData.user.username || 'Foydalanuvchi'}
+                      {userData.user?.username || 'Foydalanuvchi'}
                     </h2>
                   </div>
 
@@ -640,7 +660,15 @@ const ProfilePage = () => {
                       )}
                     </ul>
                     <div className="flex justify-center gap-4 mt-6">
-                     
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        startIcon={<LogoutIcon />}
+                        onClick={handleLogout}
+                        aria-label="Tizimdan chiqish"
+                      >
+                        Chiqish
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -676,9 +704,8 @@ const ProfilePage = () => {
           <ThemeProvider theme={theme}>
             <div
               className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
-              onClick={handleCloseModal}
             >
-              <Fade in={true} timeout={1000}>
+              <Fade in={!!modalState.type} timeout={500} key={modalState.type}>
                 <div
                   className="bg-white w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[90%] sm:h-auto overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
@@ -780,7 +807,7 @@ const ProfilePage = () => {
                             <Tooltip title="Joriy joylashuvni aniqlash">
                               <span>
                                 <IconButton
-                                  onClick={() => handleDetectLocation()}
+                                  onClick={handleDetectLocation}
                                   disabled={isFormLoading || !isOnline}
                                   color="primary"
                                   sx={{ mt: 1 }}
@@ -878,7 +905,7 @@ const ProfilePage = () => {
                               <option value="">Profilni tanlang</option>
                               {availableProfiles.map((profile) => (
                                 <option key={profile.id} value={profile.id}>
-                                  {profile.user.username}
+                                  {profile.user?.username || 'Noma\'lum'}
                                 </option>
                               ))}
                             </select>
@@ -969,18 +996,22 @@ const ProfilePage = () => {
         )}
 
         {/* Snackbar for logout messages */}
-        {snackbar.open && (
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <MuiAlert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            elevation={6}
+            variant="filled"
+            sx={{ borderRadius: 8 }}
+          >
             {snackbar.message}
-            <button
-              onClick={() => setSnackbar({ ...snackbar, open: false })}
-              className="ml-4 text-white hover:text-gray-200"
-              aria-label="Xabarni yopish"
-            >
-              <CloseIcon fontSize="small" />
-            </button>
-          </div>
-        )}
+          </MuiAlert>
+        </Snackbar>
       </div>
     </ErrorBoundary>
   );

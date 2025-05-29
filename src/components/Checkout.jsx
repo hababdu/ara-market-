@@ -21,9 +21,83 @@ import {
 
 const steps = ['Savat', 'Yetkazish', "To'lov"];
 
+// Axios instance for API requests
+const api = axios.create({
+  baseURL: 'https://hosilbek.pythonanywhere.com/api/',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Interceptor to handle token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (token) {
+      prom.resolve(token);
+    } else {
+      prom.reject(error);
+    }
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post('https://hosilbek.pythonanywhere.com/api/token/refresh/', {
+          refresh: refreshToken,
+        });
+
+        const newAccessToken = response.data.access;
+        localStorage.setItem('authToken', newAccessToken);
+        api.defaults.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+
+        processQueue(null, newAccessToken);
+        isRefreshing = false;
+        return api(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        isRefreshing = false;
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userData');
+        window.location.href = '/profile';
+        return Promise.reject(err);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 const Checkout = () => {
   const navigate = useNavigate();
-  const isMobile = window.innerWidth < 640; // Simple mobile detection for Tailwind
+  const isMobile = window.innerWidth < 640;
   const [activeStep, setActiveStep] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [userData, setUserData] = useState(null);
@@ -46,7 +120,6 @@ const Checkout = () => {
     detected_at: null,
   });
 
-  // Minimum kuryer narxi va kilometr narxi
   const MIN_DELIVERY_FEE = 10000;
   const PER_KM_FEE = 1000;
 
@@ -70,6 +143,8 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!token) {
+      setError('Sessiya tugagan. Iltimos, qayta kiring.');
+      setLoading(false);
       navigate('/profile');
       return;
     }
@@ -122,8 +197,7 @@ const Checkout = () => {
     const kitchenLat = cartItems[0].kitchen_location.latitude;
     const kitchenLon = cartItems[0].kitchen_location.longitude;
 
-    // Haversine formula to calculate distance
-    const R = 6371; // Earth's radius in kilometers
+    const R = 6371;
     const dLat = ((kitchenLat - userLat) * Math.PI) / 180;
     const dLon = ((kitchenLon - userLon) * Math.PI) / 180;
     const a =
@@ -131,13 +205,12 @@ const Checkout = () => {
       Math.cos((userLat * Math.PI) / 180) * Math.cos((kitchenLat * Math.PI) / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in kilometers
+    const distance = R * c;
 
-    // Calculate courier fee: minimum 10,000 so'm + 1,000 so'm per km
     const courierFee = MIN_DELIVERY_FEE + Math.round(distance * PER_KM_FEE);
 
     return {
-      distance: distance.toFixed(1), // Round to 1 decimal place
+      distance: distance.toFixed(1),
       courierFee,
     };
   }, [deliveryInfo.latitude, deliveryInfo.longitude, cartItems]);
@@ -167,7 +240,7 @@ const Checkout = () => {
           const { latitude, longitude } = position.coords;
           const detectedAt = new Date().toISOString();
 
-          const response = await axios.get(
+          const response = await api.get(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
           );
 
@@ -281,16 +354,11 @@ const Checkout = () => {
         distance: distance,
       };
 
-      const response = await axios.post(
-        'https://hosilbek.pythonanywhere.com/api/user/create-order/',
-        orderData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await api.post('user/create-order/', orderData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.data && response.data.id) {
         localStorage.removeItem('cart');
@@ -391,15 +459,15 @@ const Checkout = () => {
   const totalWithCourier = calculateTotal + (courierFee || MIN_DELIVERY_FEE);
 
   return (
-    <div className=" mx-auto py-6 pb-[120px] sm:pb-6">
+    <div className="mx-auto py-6 pb-[120px] sm:pb-6">
       {/* Fixed Top Bar */}
       <div className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="flex items-center justify-between px-4 py-2">
           <button onClick={handleBack} className="text-[#FF6200] hover:text-[#FFAB40] p-2">
             <ArrowBackIcon fontSize="small" />
           </button>
-          < airbags className="text-sm font-bold text-gray-800">Buyurtma berish</ airbags>
-          <div className="w-6"></div> {/* Placeholder for alignment */}
+          <h1 className="text-sm font-bold text-gray-800">Buyurtma berish</h1>
+          <div className="w-6"></div>
         </div>
       </div>
       <div className="mt-14 sm:mt-16" />
@@ -519,54 +587,6 @@ const Checkout = () => {
 
             {/* Location Section */}
             <div className="mb-4 p-2 bg-[#FFF3E0] rounded-lg border border-orange-100">
-               {/* Mobile Summary Bottom Sheet */}
-      <div
-        className={` bg-white rounded-t-2xl shadow-lg z-50  transition-all duration-300 ${
-          summaryExpanded ? 'h-[50%]' : 'h-16'
-        }`}
-      >
-        <div className="flex justify-between items-center p-4 bg-white rounded-t-2xl">
-          <div>
-            <p className="text-xs text-gray-600">Jami:</p>
-            <p className="text-base font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
-          </div>
-          <button
-            onClick={() => setSummaryExpanded(!summaryExpanded)}
-            className="text-[#FF6200] hover:text-[#FFAB40]"
-          >
-            {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </button>
-        </div>
-        {summaryExpanded && (
-          <div className="p-4">
-          
-            <hr className="my-2 border-gray-200" />
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <p className="text-xs text-gray-600">Mahsulotlar:</p>
-                <p className="text-xs text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
-              </div>
-              {deliveryInfo.latitude && deliveryInfo.longitude && (
-                <div className="flex justify-between">
-                  <p className="text-xs text-gray-600">Yetkazib berish:</p>
-                  <p className="text-xs text-gray-600">{courierFee.toLocaleString()} so'm</p>
-                </div>
-              )}
-              {deliveryInfo.latitude && deliveryInfo.longitude && distance && (
-                <div className="flex justify-between">
-                  <p className="text-xs text-gray-600">Masofa:</p>
-                  <p className="text-xs text-gray-600">{distance} km</p>
-                </div>
-              )}
-              <hr className="my-1 border-gray-200" />
-              <div className="flex justify-between">
-                <p className="text-xs font-bold text-gray-800">Umumiy summa:</p>
-                <p className="text-sm font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
               <p className="text-xs flex items-center mt-4 mb-2">
                 <GpsFixedIcon className="text-[#FF6200] mr-1" style={{ fontSize: 16 }} />
                 Joylashuv
@@ -616,7 +636,6 @@ const Checkout = () => {
                   )}
                 </div>
               )}
-              
             </div>
 
             <div className="relative mb-4">
@@ -750,7 +769,53 @@ const Checkout = () => {
         )}
       </div>
 
-     
+      {/* Mobile Summary Bottom Sheet */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-50 transition-all duration-300 sm:hidden ${
+          summaryExpanded ? 'h-[50%]' : 'h-16'
+        }`}
+      >
+        <div className="flex justify-between items-center p-4 bg-white rounded-t-2xl">
+          <div>
+            <p className="text-xs text-gray-600">Jami:</p>
+            <p className="text-base font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+          </div>
+          <button
+            onClick={() => setSummaryExpanded(!summaryExpanded)}
+            className="text-[#FF6200] hover:text-[#FFAB40]"
+          >
+            {summaryExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </button>
+        </div>
+        {summaryExpanded && (
+          <div className="p-4">
+            <hr className="my-2 border-gray-200" />
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <p className="text-xs text-gray-600">Mahsulotlar:</p>
+                <p className="text-xs text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
+              </div>
+              {deliveryInfo.latitude && deliveryInfo.longitude && (
+                <div className="flex justify-between">
+                  <p className="text-xs text-gray-600">Yetkazib berish:</p>
+                  <p className="text-xs text-gray-600">{courierFee.toLocaleString()} so'm</p>
+                </div>
+              )}
+              {deliveryInfo.latitude && deliveryInfo.longitude && distance && (
+                <div className="flex justify-between">
+                  <p className="text-xs text-gray-600">Masofa:</p>
+                  <p className="text-xs text-gray-600">{distance} km</p>
+                </div>
+              )}
+              <hr className="my-1 border-gray-200" />
+              <div className="flex justify-between">
+                <p className="text-xs font-bold text-gray-800">Umumiy summa:</p>
+                <p className="text-sm font-bold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialogs */}
       {showLocationDialog && (

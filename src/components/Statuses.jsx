@@ -64,37 +64,37 @@ const ActiveOrdersDashboard = () => {
     () => ({
       buyurtma_tushdi: {
         label: 'Yangi',
-        color: '#FF6200', // Matches Checkout primary
+        color: '#FF6200',
         icon: <AccessTime fontSize="small" />,
         message: 'Buyurtma qabul qilindi!',
       },
       oshxona_vaqt_belgiladi: {
         label: 'Tayyorlanmoqda',
-        color: '#0288d1', // Complements orange theme
+        color: '#0288d1',
         icon: <AccessTime fontSize="small" />,
         message: 'Oshxonada tayyorlanmoqda.',
       },
       kuryer_oldi: {
         label: 'Kuryer oldi',
-        color: '#FFAB40', // Matches Checkout secondary
+        color: '#FFAB40',
         icon: <CheckCircle fontSize="small" />,
         message: 'Kuryer buyurtmani oldi.',
       },
       kuryer_yolda: {
         label: 'Yetkazilmoqda',
-        color: '#f57c00', // Complements orange theme
+        color: '#f57c00',
         icon: <LocalShipping fontSize="small" />,
         message: 'Buyurtma yetkazilmoqda!',
       },
       buyurtma_topshirildi: {
         label: 'Yetkazildi',
-        color: '#388e3c', // Matches Checkout success
+        color: '#388e3c',
         icon: <CheckCircle fontSize="small" />,
         message: 'Buyurtma yetkazildi. Rahmat!',
       },
       qaytarildi: {
         label: 'Qaytarildi',
-        color: '#d32f2f', // Matches Checkout error
+        color: '#d32f2f',
         icon: <Cancel fontSize="small" />,
         message: 'Buyurtma qaytarildi.',
       },
@@ -120,6 +120,7 @@ const ActiveOrdersDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(Array.isArray(response.data) ? response.data : []);
+      console.log('Fetched orders:', response.data);
       setLastFetch(new Date().toISOString());
     } catch (err) {
       let errorMessage = 'Buyurtmalarni olishda xato';
@@ -227,6 +228,12 @@ const ActiveOrdersDashboard = () => {
     return `Taxminiy: ${estimated.toLocaleString('uz-UZ')}`;
   };
 
+  const calculateTotalWithCourier = (order) => {
+    const totalAmount = parseFloat(order.total_amount || 0);
+    const courierSalary = parseFloat(order.courier_salary || 0);
+    return (totalAmount + courierSalary).toLocaleString('uz-UZ');
+  };
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => order.id.toString().includes(searchQuery));
   }, [searchQuery, orders]);
@@ -248,8 +255,8 @@ const ActiveOrdersDashboard = () => {
   const handleDragEnd = (event, info) => {
     const dragDistance = info.offset.y;
     const dragVelocity = info.velocity.y;
-    const closeThreshold = window.innerHeight * 0.3; // Close if dragged 30% of screen height
-    const velocityThreshold = 500; // Close if drag velocity is high
+    const closeThreshold = window.innerHeight * 0.3;
+    const velocityThreshold = 500;
 
     if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
       handleCloseModal();
@@ -385,7 +392,7 @@ const ActiveOrdersDashboard = () => {
                       {getEstimatedDelivery(order.kitchen_time, order.created_at)}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Jami: {parseFloat(order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                      Jami: {calculateTotalWithCourier(order)} so‘m
                     </p>
                     <button
                       className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
@@ -467,7 +474,13 @@ const ActiveOrdersDashboard = () => {
                 <div>
                   <p className="text-xs font-semibold text-gray-700">Jami</p>
                   <p className="text-xs text-gray-600">
-                    {parseFloat(modalState.order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                    Mahsulotlar: {parseFloat(modalState.order.total_amount || 0).toLocaleString('uz-UZ')} so‘m
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Yetkazib berish: {parseFloat(modalState.order.courier_salary || 0).toLocaleString('uz-UZ')} so‘m
+                  </p>
+                  <p className="text-xs font-bold text-gray-600">
+                    Umumiy: {calculateTotalWithCourier(modalState.order)} so‘m
                   </p>
                 </div>
                 <hr className="border-gray-200" />
@@ -561,26 +574,16 @@ const ActiveOrdersDashboard = () => {
                     ) : (
                       <p className="text-xs text-gray-600">Mahsulot yo‘q</p>
                     )}
-                    ) : (
-                      <p className="text-xs text-gray-600">Mahsulot yo‘q</p>
                   </ul>
                 </div>
                 <button
-                  className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                  className="mt-3 mb-20 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
                   onClick={() => returnOrder(modalState.order.id)}
                   disabled={isReturnDisabled(modalState.order.status)}
                 >
                   <Cancel className="mr-1" fontSize="small" />
                   Qaytarish
                 </button>
-                  className="mt-3 border border-[#FF6200] text-[#FF6200] px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:bg-[#FF6200] hover:text-white hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
-                <button onClick={() => returnOrder(modalState.order.id)}
-                  disabled={isReturnDisabled(modalState.order.status)}
-                >
-                  <Cancel className="mr-1" fontSize="small" />
-                  Qaytarish
-                </button>
-               
               </div>
             </motion.div>
           </motion.div>
