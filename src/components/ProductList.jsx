@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Fastfood as FastfoodIcon,
-  LocalDining as KitchenIcon,
   AttachMoney as PriceIcon,
   LocalOffer as DiscountIcon,
-  Refresh as RefreshIcon,
-  Search as SearchIcon,
-  FilterList as FilterIcon,
   Close as CloseIcon,
   ShoppingCart as CartIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-// Shuffle function for products
+// Mahsulotlarni tasodifiy tartibda aralashtirish funksiyasi
 const shuffleArray = (array) => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -26,14 +22,9 @@ const shuffleArray = (array) => {
 
 const ProductsList = () => {
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState('');
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [selectedKitchen, setSelectedKitchen] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [cartCount, setCartCount] = useState(0);
@@ -51,6 +42,7 @@ const ProductsList = () => {
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
   const addToCartButtonRef = useRef(null);
 
+  // Mahsulotlarni API dan yuklash
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -58,10 +50,19 @@ const ProductsList = () => {
       const response = await axios.get(API_URL);
       let productsData = Array.isArray(response.data) ? response.data : [];
       productsData = shuffleArray(productsData);
-      setProducts(productsData);
+
+      // Mahsulotlarni kategoriyalar bo'yicha guruhlash
+      const grouped = productsData.reduce((acc, product) => {
+        const category = product.category?.name || product.kitchen?.name || 'Uncategorized';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(product);
+        return acc;
+      }, {});
+
+      setCategories(grouped);
     } catch (err) {
       setError(err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi");
-      setProducts([]);
+      setCategories({});
     } finally {
       setLoading(false);
     }
@@ -71,23 +72,7 @@ const ProductsList = () => {
     fetchProducts();
   }, []);
 
-  // Filter products based on selected kitchen and search
-  useEffect(() => {
-    let result = [...products];
-    if (selectedKitchen) {
-      result = result.filter((product) => product.kitchen?.name === selectedKitchen);
-    }
-    if (search) {
-      result = result.filter(
-        (product) =>
-          product.title?.toLowerCase().includes(search.toLowerCase()) ||
-          product.description?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    setFilteredProducts(result);
-  }, [search, selectedKitchen, products]);
-
-  // Update cart data
+  // Savat ma'lumotlarini yangilash
   const updateCartData = useCallback(() => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -102,19 +87,7 @@ const ProductsList = () => {
     return () => window.removeEventListener('storage', updateCartData);
   }, [updateCartData]);
 
-  // Reset filters
-  const resetFilters = () => {
-    setSearch('');
-    setSelectedKitchen(null);
-  };
-
-  // Get unique kitchens
-  const uniqueKitchens = useMemo(
-    () => [...new Set(products.map((p) => p.kitchen?.name).filter(Boolean))],
-    [products]
-  );
-
-  // Draggable cart button functionality
+  // Savat tugmasini sudrab yurish funksiyalari
   useEffect(() => {
     localStorage.setItem('productsCartButtonPosition', JSON.stringify(cartPosition));
   }, [cartPosition]);
@@ -141,7 +114,7 @@ const ProductsList = () => {
 
     const buttonWidth = 64;
     const buttonHeight = 64;
-    const navBarHeight = 60; // Height of bottom navigation bar from Layout
+    const navBarHeight = 60;
     newX = Math.max(0, Math.min(newX, window.innerWidth - buttonWidth));
     newY = Math.max(0, Math.min(newY, window.innerHeight - buttonHeight - navBarHeight));
 
@@ -167,16 +140,15 @@ const ProductsList = () => {
     };
   }, [isDragging, dragStart]);
 
-  // Add to cart with animation targeting the current cart position
+  // Savatga qo'shish animatsiyasi
   const addToCart = useCallback(() => {
     if (!selectedProduct) return;
 
     const buttonRect = addToCartButtonRef.current?.getBoundingClientRect();
     if (!buttonRect) return;
 
-    // Use the current cartPosition for the end position
-    const cartX = cartPosition.x + 32; // Center of the cart button (width/2)
-    const cartY = cartPosition.y + 32; // Center of the cart button (height/2)
+    const cartX = cartPosition.x + 32;
+    const cartY = cartPosition.y + 32;
 
     const animationId = Date.now();
     setAnimations((prev) => [
@@ -227,17 +199,17 @@ const ProductsList = () => {
     }, 1500);
   }, [selectedProduct, quantity, cartPosition]);
 
-  // Handle modal close
+  // Modalni yopish
   const handleCloseModal = () => {
     setSelectedProduct(null);
   };
 
-  // Handle modal drag end
+  // Modalni sudrab yopish
   const handleModalDragEnd = (event, info) => {
     const dragDistance = info.offset.y;
     const dragVelocity = info.velocity.y;
-    const closeThreshold = window.innerHeight * 0.3; // Close if dragged 30% of screen height
-    const velocityThreshold = 500; // Close if drag velocity is high
+    const closeThreshold = window.innerHeight * 0.3;
+    const velocityThreshold = 500;
 
     if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
       handleCloseModal();
@@ -275,190 +247,119 @@ const ProductsList = () => {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-2 py-4 relative">
       <div className="max-w-7xl mx-auto">
-        {/* Mobile Header */}
+        {/* Sarlavha */}
         <div className="mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <h1 className="text-lg font-bold text-[#FF6200] flex items-center">
-              <FastfoodIcon className="w-5 h-5 mr-2" />
-              Mahsulotlar ({filteredProducts.length})
-            </h1>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                className="p-2 rounded-full bg-[#FF6200] text-white"
-                aria-label={mobileSearchOpen ? 'Qidiruvni yopish' : 'Qidiruvni ochish'}
-              >
-                {mobileSearchOpen ? <CloseIcon className="w-5 h-5" /> : <SearchIcon className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-                className="p-2 rounded-full bg-[#FF6200] text-white"
-                aria-label={mobileFilterOpen ? 'Filtrlarni yopish' : 'Filtrlarni ochish'}
-              >
-                {mobileFilterOpen ? <CloseIcon className="w-5 h-5" /> : <FilterIcon className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Search */}
-          {mobileSearchOpen && (
-            <div className="relative mb-3">
-              <input
-                type="text"
-                placeholder="Mahsulot qidirish..."
-                className="w-full border border-[#FFAB40] rounded-lg px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] placeholder-gray-600"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Mahsulot qidirish"
-              />
-              <SearchIcon className="w-5 h-5 absolute left-3 top-2.5 text-[#FFAB40]" />
-            </div>
-          )}
-
-          {/* Mobile Filters */}
-          {mobileFilterOpen && (
-            <div className="bg-white p-4 rounded-lg shadow-md mb-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium text-sm text-[#333] flex items-center">
-                  <FilterIcon className="w-4 h-4 mr-1" />
-                  Oshxonalar
-                </h3>
-                <button
-                  onClick={resetFilters}
-                  className="text-[#FF6200] text-xs flex items-center"
-                  aria-label="Filtrlarni tozalash"
-                >
-                  <RefreshIcon className="w-4 h-4 mr-1" />
-                  Tozalash
-                </button>
-              </div>
-              <div className="space-y-2">
-                {uniqueKitchens.map((kitchen) => (
-                  <button
-                    key={kitchen}
-                    onClick={() => setSelectedKitchen(selectedKitchen === kitchen ? null : kitchen)}
-                    className={`w-full text-left p-2 rounded text-sm ${
-                      selectedKitchen === kitchen
-                        ? 'bg-[#FF6200] text-white'
-                        : 'bg-[#FFF3E0] text-[#333]'
-                    }`}
-                    aria-label={`Oshxona: ${kitchen}`}
-                  >
-                    {kitchen}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <h1 className="text-lg font-bold text-[#FF6200] flex items-center">
+            <FastfoodIcon className="w-5 h-5 mr-2" />
+            Mahsulotlar (
+            {Object.values(categories).reduce((sum, prods) => sum + prods.length, 0)})
+          </h1>
         </div>
 
-        {/* Kitchens Carousel */}
-        <div className="overflow-x-auto whitespace-nowrap mb-4 pb-2">
-          <ul className="flex gap-2">
-            {uniqueKitchens.map((kitchen) => (
-              <li
-                key={kitchen}
-                className={`inline-block px-4 py-2 rounded-full cursor-pointer text-sm ${
-                  selectedKitchen === kitchen
-                    ? 'bg-[#FF6200] text-white'
-                    : 'bg-[#FFF3E0] text-[#333] border border-[#FFAB40]'
-                }`}
-                onClick={() => setSelectedKitchen(selectedKitchen === kitchen ? null : kitchen)}
-              >
-                {kitchen}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Products or Empty State */}
-        {filteredProducts.length === 0 ? (
+        {/* Kategoriyalar bo'limlari */}
+        {Object.keys(categories).length === 0 ? (
           <div className="text-center py-12 text-[#666] bg-white rounded-lg shadow-sm">
-            {search ? (
-              <>
-                <SearchIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
-                <p className="text-base">"{search}" bo‘yicha hech narsa topilmadi</p>
-              </>
-            ) : (
-              <>
-                <FastfoodIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
-                <p className="text-base">Mahsulotlar topilmadi</p>
-              </>
-            )}
-            <button
-              onClick={resetFilters}
-              className="mt-4 bg-[#FF6200] hover:bg-[#FFAB40] text-white px-4 py-2 rounded-lg flex items-center mx-auto text-sm"
-              aria-label="Barcha filtrlarni tozalash"
-            >
-              <RefreshIcon className="w-4 h-4 mr-1" />
-              Barcha filtrlarni tozalash
-            </button>
+            <FastfoodIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
+            <p className="text-base">Mahsulotlar topilmadi</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {filteredProducts.map((product) => (
-              <div
-                style={{
-                  background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0, #FFF3E0)',
-                }}
-                key={product.id}
-                className="rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full cursor-pointer"
-                onClick={() => setSelectedProduct(product)}
-                aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
-              >
-                {/* Product Image */}
-                <div className="relative pt-[75%] overflow-hidden">
-                  {product.photo ? (
-                    <img
-                      src={`https://hosilbek.pythonanywhere.com${product.photo}`}
-                      alt={product.title || 'Mahsulot rasmi'}
-                      className="absolute top-0 left-0 w-full h-full bg-object-cover transition-transform duration-300 hover:scale-100"
-                    />
-                  ) : (
-                    <div className="absolute top-0 left-0 w-full h-full bg-[#FFF3E0] flex items-center justify-center">
-                      <FastfoodIcon className="w-12 h-12" />
-                    </div>
-                  )}
-                  {parseFloat(product.discount) > 0 && (
-                    <div className="absolute top-2 right-2 bg-[#FF6200] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                      <DiscountIcon className="w-3 h-3 mr-1" />
-                      {Math.round((parseFloat(product.discount) - parseFloat(product.price)) * 100)}%
-                    </div>
-                  )}
+          <div className="space-y-6">
+            {Object.entries(categories).map(([category, products]) => (
+              <div key={category} className="mb-6 max-w-sm mx-auto">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-bold text-[#FF6200]">{category}</h2>
+                  <Link
+                    to={`/category/${encodeURIComponent(category)}`}
+                    className="text-[#FF6200] hover:text-[#FFAB40] text-sm flex items-center"
+                  >
+                    Barchasini ko‘rish
+                    <svg
+                      className="w-4 h-4 ml-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </Link>
                 </div>
+                <div className="overflow-x-auto flex gap-2 pb-2 scroll-smooth hide-scrollbar">
+                  {products.map((product) => (
+                    <div
+                      style={{
+                        background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0, #FFF3E0)',
+                      }}
+                      key={product.id}
+                      className="w-40 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col flex-shrink-0 cursor-pointer"
+                      onClick={() => setSelectedProduct(product)}
+                      aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
+                    >
+                      {/* Mahsulot rasmi */}
+                      <div className="relative pt-[75%] overflow-hidden">
+                        {product.photo ? (
+                          <img
+                            src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+                            alt={product.title || 'Mahsulot rasmi'}
+                            className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-100"
+                          />
+                        ) : (
+                          <div className="absolute top-0 left-0 w-full h-full bg-[#FFF3E0] flex items-center justify-center">
+                            <FastfoodIcon className="w-12 h-12" />
+                          </div>
+                        )}
+                        {parseFloat(product.discount) > 0 && (
+                          <div className="absolute top-2 right-2 bg-[#FF6200] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+                            <DiscountIcon className="w-3 h-3 mr-1" />
+                            {Math.round(
+                              (parseFloat(product.discount) - parseFloat(product.price)) * 100
+                            )}
+                            %
+                          </div>
+                        )}
+                      </div>
 
-                {/* Product Details */}
-                <div
-                  style={{
-                    background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
-                  }}
-                  className="p-3 flex flex-col  items-start justify-between"
-                >
-                  <h3 className="font-semibold text-center text-sm text-[#333] truncate" title={product.title}>
-                    {product.title || 'Loading...'}
-                  </h3>
-                 
-                  <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
-                    {product.description || 'Tavsif mavjud emas'}
-                  </p>
-                  <div className="mt-auto">
-                    <div className="flex items-center mb-1">
-                      <span
-                        className={`font-bold text-sm ${
-                          parseFloat(product.discount) > 0
-                            ? 'line-through text-[#666]'
-                            : 'text-[#333]'
-                        }`}
+                      {/* Mahsulot ma'lumotlari */}
+                      <div
+                        style={{
+                          background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0)',
+                        }}
+                        className="p-3 flex flex-col items-start justify-between"
                       >
-                        {parseFloat(product.price).toLocaleString()} so'm
-                      </span>
+                        <h3
+                          className="font-semibold text-center text-sm text-[#333] truncate"
+                          title={product.title}
+                        >
+                          {product.title || 'Loading...'}
+                        </h3>
+                        <p className="text-[#666] text-xs mb-3 line-clamp-2 flex-grow">
+                          {product.description || 'Tavsif mavjud emas'}
+                        </p>
+                        <div className="mt-auto">
+                          <div className="flex items-center mb-1">
+                            <span
+                              className={`font-bold text-sm ${
+                                parseFloat(product.discount) > 0
+                                  ? 'line-through text-[#666]'
+                                  : 'text-[#333]'
+                              }`}
+                            >
+                              {parseFloat(product.price).toLocaleString()} so‘m
+                            </span>
+                          </div>
+                          {parseFloat(product.discount) > 0 && (
+                            <p className="text-[#FF6200] font-bold text-sm">
+                              {parseFloat(product.discounted_price).toLocaleString()} so‘m
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {parseFloat(product.discount) > 0 && (
-                      <p className="text-[#FF6200] font-bold text-sm">
-                        {parseFloat(product.discounted_price).toLocaleString()} so'm
-                      </p>
-                    )}
-                  </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -466,7 +367,7 @@ const ProductsList = () => {
         )}
       </div>
 
-      {/* Product Modal */}
+      {/* Mahsulot modali */}
       {selectedProduct && (
         <motion.div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
@@ -489,7 +390,7 @@ const ProductsList = () => {
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            {/* Drag Handle */}
+            {/* Modalni sudrab yopish chizig'i */}
             <div className="flex justify-center mb-2">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
             </div>
@@ -504,7 +405,7 @@ const ProductsList = () => {
               </button>
             </div>
 
-            {/* Product Image */}
+            {/* Mahsulot rasmi */}
             <div className="relative mb-4">
               {selectedProduct.photo ? (
                 <img
@@ -519,30 +420,31 @@ const ProductsList = () => {
               )}
             </div>
 
-            {/* Price */}
+            {/* Narx */}
             <div className="mb-4">
               {selectedProduct.discounted_price ? (
                 <div className="flex items-center flex-wrap gap-2">
                   <span className="text-lg font-bold text-[#FF6200]">
-                    {parseFloat(selectedProduct.discounted_price).toLocaleString('uz-UZ')} so'm
+                    {parseFloat(selectedProduct.discounted_price).toLocaleString('uz-UZ')} so‘m
                   </span>
                   <span className="text-sm text-[#666] line-through">
-                    {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so'm
+                    {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so‘m
                   </span>
                   <span className="bg-[#FFF3E0] text-[#FF6200] text-xs font-semibold px-2 py-1 rounded-full">
                     {Math.round(
                       (1 - selectedProduct.discounted_price / selectedProduct.price) * 100
-                    )}% chegirma
+                    )}
+                    % chegirma
                   </span>
                 </div>
               ) : (
                 <span className="text-lg font-bold text-[#333]">
-                  {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so'm
+                  {parseFloat(selectedProduct.price).toLocaleString('uz-UZ')} so‘m
                 </span>
               )}
             </div>
 
-            {/* Description */}
+            {/* Tavsif */}
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-[#333] mb-1">Tavsif</h3>
               <p className="text-sm text-[#666] whitespace-pre-line">
@@ -550,7 +452,7 @@ const ProductsList = () => {
               </p>
             </div>
 
-            {/* Quantity Selector and Add to Cart Button */}
+            {/* Miqdor tanlash va savatga qo'shish */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden">
                 <button
@@ -583,7 +485,7 @@ const ProductsList = () => {
         </motion.div>
       )}
 
-      {/* Draggable Floating Cart Button */}
+      {/* Sudraladigan savat tugmasi */}
       <motion.button
         onClick={() => navigate('/cart')}
         onMouseDown={handleDragStart}
@@ -609,7 +511,7 @@ const ProductsList = () => {
         </div>
       </motion.button>
 
-      {/* Animation Elements */}
+      {/* Animatsiya elementlari */}
       {animations.map((anim) => (
         <div
           key={anim.id}

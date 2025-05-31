@@ -7,6 +7,7 @@ import Checkout from './components/Checkout.jsx';
 import Profile from './components/Profile.jsx';
 import Orders from './components/Orders.jsx';
 import Status from './components/Statuses.jsx';
+import CategoryPage from './components/CategoryPage.jsx';
 import './index.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/category/:categoryName" element={<CategoryPage />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/status" element={<Status />} />
