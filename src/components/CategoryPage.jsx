@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -11,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-// Error Boundary Component
+// Error Boundary Component (unchanged)
 class ErrorBoundary extends Component {
   state = { hasError: false, errorMessage: '' };
 
@@ -48,6 +47,7 @@ const CategoryPage = () => {
   const { categoryName } = useParams();
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]); // New state for filtered products
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -63,6 +63,8 @@ const CategoryPage = () => {
   });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [subcategories, setSubcategories] = useState([]); // New state for subcategories
+  const [selectedSubcategory, setSelectedSubcategory] = useState('all'); // New state for selected subcategory
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
   const addToCartButtonRef = useRef(null);
@@ -71,34 +73,63 @@ const CategoryPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token'); // From ProfilePage.jsx
+      const token = localStorage.getItem('token');
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       const response = await axios.get(API_URL, config);
       const productsData = Array.isArray(response.data) ? response.data : [];
 
-      // Client-side filtering by category
-      const filteredProducts = productsData.filter(
+      // Filter by category
+      const filteredByCategory = productsData.filter(
         (product) =>
           (product.category?.name || product.kitchen?.name || '').toLowerCase() ===
           decodeURIComponent(categoryName).toLowerCase()
       );
 
-      setProducts(filteredProducts);
+      // Extract unique subcategories
+      const uniqueSubcategories = [
+        'all',
+        ...new Set(
+          filteredByCategory
+            .map((product) => product.subcategory?.name)
+            .filter(Boolean)
+        ),
+      ];
+
+      setProducts(filteredByCategory);
+      setFilteredProducts(filteredByCategory); // Initially show all products
+      setSubcategories(uniqueSubcategories);
     } catch (err) {
       const message = err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
       setError(message);
       setProducts([]);
+      setFilteredProducts([]);
+      setSubcategories([]);
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Filter products by selected subcategory
+  useEffect(() => {
+    if (selectedSubcategory === 'all') {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(
+        products.filter(
+          (product) =>
+            (product.subcategory?.name || '').toLowerCase() ===
+            selectedSubcategory.toLowerCase()
+        )
+      );
+    }
+  }, [selectedSubcategory, products]);
+
   useEffect(() => {
     fetchProducts();
   }, [categoryName]);
 
-  // Update cart data
+  // Update cart data (unchanged)
   const updateCartData = useCallback(() => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -113,7 +144,7 @@ const CategoryPage = () => {
     return () => window.removeEventListener('storage', updateCartData);
   }, [updateCartData]);
 
-  // Draggable cart button functionality
+  // Draggable cart button functionality (unchanged)
   useEffect(() => {
     localStorage.setItem('productsCartButtonPosition', JSON.stringify(cartPosition));
   }, [cartPosition]);
@@ -166,7 +197,7 @@ const CategoryPage = () => {
     };
   }, [isDragging, dragStart]);
 
-  // Add to cart with animation
+  // Add to cart with animation (unchanged)
   const addToCart = useCallback(() => {
     if (!selectedProduct) return;
 
@@ -225,12 +256,12 @@ const CategoryPage = () => {
     }, 1500);
   }, [selectedProduct, quantity, cartPosition]);
 
-  // Handle modal close
+  // Handle modal close (unchanged)
   const handleCloseModal = () => {
     setSelectedProduct(null);
   };
 
-  // Handle modal drag end
+  // Handle modal drag end (unchanged)
   const handleModalDragEnd = (event, info) => {
     const dragDistance = info.offset.y;
     const dragVelocity = info.velocity.y;
@@ -246,6 +277,33 @@ const CategoryPage = () => {
     <ErrorBoundary>
       <div className="min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-2 py-4 relative">
         <div className="max-w-7xl mx-auto">
+          <h1 className="text-lg font-bold text-[#FF6200] mb-4 flex items-center">
+            <FastfoodIcon className="w-5 h-5 mr-2" />
+            {decodeURIComponent(categoryName)} ({filteredProducts.length})
+          </h1>
+
+          {/* Subcategory Filter */}
+          {subcategories.length > 1 && (
+            <div className="mb-4">
+              <ul className="flex space-x-2 overflow-x-auto scrollbar-hide">
+                {subcategories.map((subcategory) => (
+                  <li key={subcategory}>
+                    <button
+                      onClick={() => setSelectedSubcategory(subcategory)}
+                      className={`px-4 py-2 text-sm rounded-full whitespace-nowrap ${
+                        selectedSubcategory === subcategory
+                          ? 'bg-[#FF6200] text-white'
+                          : 'bg-white text-[#FF6200] border border-[#FF6200] hover:bg-[#FFF3E0]'
+                      } transition-colors`}
+                    >
+                      {subcategory === 'all' ? 'Barchasi' : subcategory}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center items-center min-h-[calc(100vh-64px)]">
               <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
@@ -268,20 +326,15 @@ const CategoryPage = () => {
             </div>
           ) : (
             <>
-              <h1 className="text-lg font-bold text-[#FF6200] mb-4 flex items-center">
-                <FastfoodIcon className="w-5 h-5 mr-2" />
-                {decodeURIComponent(categoryName)} ({products.length})
-              </h1>
-
               {/* Products or Empty State */}
-              {products.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <div className="text-center py-12 text-[#666] bg-white rounded-lg shadow-sm">
                   <FastfoodIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
                   <p className="text-base">Mahsulotlar topilmadi</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <div
                       style={{
                         background: 'linear-gradient(to bottom, #FFFFFF, #FFF3E0, #FFF3E0)',
@@ -360,7 +413,7 @@ const CategoryPage = () => {
             </>
           )}
 
-          {/* Product Modal */}
+          {/* Product Modal (unchanged) */}
           {selectedProduct && (
             <motion.div
               className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
@@ -383,7 +436,6 @@ const CategoryPage = () => {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
-                {/* Drag Handle */}
                 <div className="flex justify-center mb-2">
                   <div className="w-10 h-1 bg-gray-300 rounded-full" />
                 </div>
@@ -398,7 +450,6 @@ const CategoryPage = () => {
                   </button>
                 </div>
 
-                {/* Product Image */}
                 <div className="relative mb-4">
                   {selectedProduct.photo ? (
                     <img
@@ -414,7 +465,6 @@ const CategoryPage = () => {
                   )}
                 </div>
 
-                {/* Price */}
                 <div className="mb-4">
                   {selectedProduct.discounted_price ? (
                     <div className="flex items-center flex-wrap gap-2">
@@ -441,7 +491,6 @@ const CategoryPage = () => {
                   )}
                 </div>
 
-                {/* Description */}
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-[#333] mb-1">Tavsif</h3>
                   <p className="text-sm text-[#666] whitespace-pre-line">
@@ -449,7 +498,6 @@ const CategoryPage = () => {
                   </p>
                 </div>
 
-                {/* Quantity Selector and Add to Cart Button */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center border border-[#FFAB40] rounded-lg overflow-hidden">
                     <button
@@ -482,7 +530,7 @@ const CategoryPage = () => {
             </motion.div>
           )}
 
-          {/* Draggable Floating Cart Button */}
+          {/* Draggable Floating Cart Button (unchanged) */}
           <motion.button
             onClick={() => navigate('/cart')}
             onMouseDown={handleDragStart}
@@ -508,7 +556,7 @@ const CategoryPage = () => {
             </div>
           </motion.button>
 
-          {/* Animation Elements */}
+          {/* Animation Elements (unchanged) */}
           {animations.map((anim) => (
             <motion.div
               key={anim.id}
