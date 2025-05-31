@@ -121,7 +121,7 @@ const Checkout = () => {
     detected_at: null,
   });
 
-  const MIN_DELIVERY_FEE = 10000;
+  const MIN_DELIVERY_FEE = 8000;
   const PER_KM_FEE = 1000;
 
   const user = localStorage.getItem('userData');
@@ -303,7 +303,7 @@ const Checkout = () => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 8000,
         maximumAge: 0,
       }
     );

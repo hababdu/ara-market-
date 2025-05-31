@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -102,7 +103,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="p-8 text-center">
           <h2 className="text-2xl font-bold text-red-600">
-            Xatolik yuz berdi: {this.state.error?.message || 'Noma\'lum xatolik'}
+            Xatolik yuz berdi: {this.state.error?.message || 'Noma‘lum xatolik'}
           </h2>
           <p className="mt-4 text-gray-600">Iltimos, sahifani yangilang yoki qayta urinib ko‘ring.</p>
           <Button
@@ -190,33 +191,36 @@ const ProfilePage = () => {
   }, []);
 
   // Generic API request with retry and token refresh
-  const makeAuthenticatedRequest = useCallback(async (config, retries = 1) => {
-    let attempt = 0;
-    while (attempt <= retries) {
-      try {
-        const currentToken = localStorage.getItem('authToken');
-        if (!currentToken) {
-          throw new Error('No auth token available');
-        }
-        return await axios({
-          ...config,
-          headers: {
-            ...config.headers,
-            Authorization: `Bearer ${currentToken}`,
-          },
-        });
-      } catch (err) {
-        if (err.response?.status === 401 && attempt < retries) {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            attempt++;
-            continue;
+  const makeAuthenticatedRequest = useCallback(
+    async (config, retries = 1) => {
+      let attempt = 0;
+      while (attempt <= retries) {
+        try {
+          const currentToken = localStorage.getItem('authToken');
+          if (!currentToken) {
+            throw new Error('No auth token available');
           }
+          return await axios({
+            ...config,
+            headers: {
+              ...config.headers,
+              Authorization: `Bearer ${currentToken}`,
+            },
+          });
+        } catch (err) {
+          if (err.response?.status === 401 && attempt < retries) {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+              attempt++;
+              continue;
+            }
+          }
+          throw err;
         }
-        throw err;
       }
-    }
-  }, [refreshAccessToken]);
+    },
+    [refreshAccessToken]
+  );
 
   // Fetch user data and profiles
   useEffect(() => {
@@ -227,54 +231,82 @@ const ProfilePage = () => {
           throw new Error('Tizimga kirish talab qilinadi');
         }
 
-        const response = await makeAuthenticatedRequest({
-          method: 'get',
-          url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
-        });
+        let profileData;
+        try {
+          const response = await makeAuthenticatedRequest({
+            method: 'get',
+            url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+          });
+          profileData = response.data;
+        } catch (err) {
+          console.warn('API fetch failed, checking localStorage:', err.message);
+          const storedUserData = localStorage.getItem('userData');
+          if (storedUserData) {
+            try {
+              profileData = JSON.parse(storedUserData);
+            } catch (parseErr) {
+              console.error('Failed to parse userData from localStorage:', parseErr);
+            }
+          }
+        }
 
-        let profileData = response.data;
         if (Array.isArray(profileData)) {
           if (profileData.length === 0) {
-            throw new Error('Profil ma\'lumotlari topilmadi');
+            console.warn('API returned empty profile array');
+            if (isMounted.current) {
+              setError('Profil ma‘lumotlari topilmadi. Iltimos, profil yarating.');
+              setLoading(false);
+            }
+            return;
           }
           profileData = profileData[0];
         }
 
         if (!profileData || !profileData.id) {
-          throw new Error('Profil ma\'lumotlari topilmadi');
+          console.warn('Invalid profile data, missing id:', profileData);
+          if (isMounted.current) {
+            setError('Profil ma‘lumotlari topilmadi. Iltimos, profil yarating.');
+            setLoading(false);
+          }
+          return;
         }
 
+        const formattedUserData = {
+          ...profileData,
+          avatar: profileData.avatar || defaultAvatar,
+          user: profileData.user || { username: profileData.username || 'Foydalanuvchi' },
+          stats: {
+            orders: profileData.orders?.length || 0,
+            favorites: profileData.favorites?.length || 0,
+            notifications: profileData.notifications?.length || 0,
+          },
+          phone_number: profileData.phone_number || '',
+          address: profileData.address || '',
+          location: profileData.location || '',
+        };
+
         if (isMounted.current) {
-          setUserData({
-            ...profileData,
-            avatar: profileData.avatar || defaultAvatar,
-            stats: {
-              orders: profileData.orders?.length || 0,
-              favorites: profileData.favorites?.length || 0,
-              notifications: profileData.notifications?.length || 0,
-            },
-          });
-          localStorage.setItem('userData', JSON.stringify(profileData));
+          setUserData(formattedUserData);
+          localStorage.setItem('userData', JSON.stringify(formattedUserData));
+          setError('');
+          setLoading(false);
         }
       } catch (err) {
         console.error('Fetch user data error:', err.response ? err.response.data : err.message);
-        let errorMessage = 'Profil ma\'lumotlarini yuklashda xato yuz berdi';
+        let errorMessage = 'Profil ma‘lumotlarini yuklashda xato yuz berdi';
         if (err.response?.status === 401) {
           errorMessage = 'Sessiya muddati tugagan. Iltimos, qayta kiring';
           localStorage.removeItem('authToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('userData');
           navigate('/login');
-        } else if (err.response?.status === 404 || err.message === 'Profil ma\'lumotlari topilmadi') {
-          errorMessage = 'Profil ma\'lumotlari topilmadi';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Profil ma‘lumotlari topilmadi';
         } else if (err.response?.status === 500) {
-          errorMessage = 'Server xatosi. Keyinroq urinib ko\'ring';
+          errorMessage = 'Server xatosi. Keyinroq urinib ko‘ring';
         }
         if (isMounted.current) {
           setError(errorMessage);
-        }
-      } finally {
-        if (isMounted.current) {
           setLoading(false);
         }
       }
@@ -318,221 +350,292 @@ const ProfilePage = () => {
 
   const handleFormChange = useCallback((e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleDetectLocation = useCallback((retries = 3, delay = 2000) => {
-    setIsFormLoading(true);
-    setFormError('');
+  const handleDetectLocation = useCallback(
+    (retries = 3, delay = 2000) => {
+      setIsFormLoading(true);
+      setFormError('');
 
-    if (!navigator.geolocation) {
-      setFormError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi.");
-      setIsFormLoading(false);
-      return;
-    }
+      if (!navigator.geolocation) {
+        setFormError("Brauzeringiz geolokatsiyani qo‘llab-quvvatlamaydi.");
+        setIsFormLoading(false);
+        return;
+      }
 
-    const attemptLocation = (attemptsLeft) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (!isMounted.current) return;
-          const { latitude, longitude } = position.coords;
-          const location = `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`;
-          setFormData(prev => ({ ...prev, location }));
-          setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
-          setIsFormLoading(false);
-        },
-        (err) => {
-          if (!isMounted.current) return;
-          console.error('Geolokatsiya xatosi:', err.message, 'Kod:', err.code);
-          if (err.code === 1) {
-            setFormError("Joylashuvga ruxsat berilmadi. Qo'lda kiriting.");
-          } else if (err.code === 2) {
-            if (attemptsLeft > 0) {
-              setTimeout(() => attemptLocation(attemptsLeft - 1), delay);
+      const attemptLocation = (attemptsLeft) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            if (!isMounted.current) return;
+            const { latitude, longitude } = position.coords;
+            const location = `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`;
+            setFormData((prev) => ({ ...prev, location }));
+            setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
+            setIsFormLoading(false);
+          },
+          (err) => {
+            if (!isMounted.current) return;
+            console.error('Geolokatsiya xatosi:', err.message, 'Kod:', err.code);
+            if (err.code === 1) {
+              setFormError("Joylashuvga ruxsat berilmadi. Qo‘lda kiriting.");
+            } else if (err.code === 2) {
+              if (attemptsLeft > 0) {
+                setTimeout(() => attemptLocation(attemptsLeft - 1), delay);
+              } else {
+                setFormError('Joylashuvni aniqlash imkonsiz. Internet aloqasini tekshiring.');
+              }
+            } else if (err.code === 3) {
+              setFormError('Joylashuvni aniqlash vaqti o‘tdi. Qayta urinib ko‘ring.');
             } else {
-              setFormError('Joylashuvni aniqlash imkonsiz. Internet aloqasini tekshiring.');
+              setFormError('Joylashuvni aniqlashda noma‘lum xatolik yuz berdi.');
             }
-          } else if (err.code === 3) {
-            setFormError('Joylashuvni aniqlash vaqti o‘tdi. Qayta urinib ko‘ring.');
-          } else {
-            setFormError('Joylashuvni aniqlashda noma‘lum xatolik yuz berdi.');
-          }
-          setIsFormLoading(false);
-        },
-        { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
-      );
-    };
+            setIsFormLoading(false);
+          },
+          { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
+        );
+      };
 
-    attemptLocation(retries);
-  }, []);
+      attemptLocation(retries);
+    },
+    []
+  );
 
   const handleClickShowPassword = useCallback(() => {
-    setShowPassword(prev => !prev);
+    setShowPassword((prev) => !prev);
   }, []);
 
-  const handleRegisterSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-    setIsFormLoading(true);
+  const handleRegisterSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setFormError('');
+      setFormSuccess('');
+      setIsFormLoading(true);
 
-    if (!isOnline) {
-      setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
-      setIsFormLoading(false);
-      return;
-    }
-
-    if (formData.username.length < 3) {
-      setFormError("Foydalanuvchi ismi kamida 3 belgidan iborat bo'lishi kerak.");
-      setIsFormLoading(false);
-      return;
-    }
-    const phoneRegex = /^\+998\d{9}$/;
-    if (!phoneRegex.test(formData.phone_number)) {
-      setFormError("Telefon raqami +998 bilan boshlanib, 9 ta raqamdan iborat bo'lishi kerak.");
-      setIsFormLoading(false);
-      return;
-    }
-    if (!formData.location) {
-      setFormError("Joylashuv maydonini to'ldiring (masalan, Toshkent shahri).");
-      setIsFormLoading(false);
-      return;
-    }
-    if (formData.password.length < 6) {
-      setFormError("Parol kamida 6 belgidan iborat bo'lishi kerak.");
-      setIsFormLoading(false);
-      return;
-    }
-
-    const payload = {
-      username: formData.username.trim(),
-      address: formData.address,
-      phone_number: formData.phone_number,
-      location: formData.location,
-      password: formData.password,
-      email: 'user@gmail.com',
-    };
-
-    try {
-      const registerResponse = await axios.post(
-        'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
-        payload,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const loginResponse = await axios.post(
-        'https://hosilbek.pythonanywhere.com/api/token/',
-        {
-          username: formData.username.trim(),
-          password: formData.password,
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const { access: authToken, refresh: refreshToken } = loginResponse.data;
-
-      localStorage.setItem('authToken', authToken);
-      localStorage.setItem('refreshToken', refreshToken);
-
-      if (isMounted.current) {
-        setFormSuccess("Ro'yxatdan o'tish muvaffaqiyatli! Profil sahifasiga o'tilmoqda...");
-        setTimeout(() => {
-          if (isMounted.current) {
-            setModalState({ type: null });
-            navigate('/profile');
-          }
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Registration Error:', err.message, err.response?.data);
-      let errorMessage = "Ro'yxatdan o'tishda xatolik yuz berdi.";
-      if (err.response) {
-        if (err.response.status === 400) {
-          if (err.response.data.username) {
-            errorMessage = `Foydalanuvchi nomi band: ${err.response.data.username.join(' ')}`;
-          } else {
-            errorMessage = err.response.data.message || "Noto'g'ri ma'lumotlar kiritildi.";
-          }
-        } else if (err.response.status === 500) {
-          errorMessage = "Server xatosi. Iltimos, keyinroq urinib ko'ring.";
-        }
-      } else if (err.request || err.message.includes('Network Error')) {
-        errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
-      }
-      if (isMounted.current) {
-        setFormError(errorMessage);
+      if (!isOnline) {
+        setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
         setIsFormLoading(false);
+        return;
       }
-    }
-  }, [formData, isOnline, navigate]);
 
-  const handleLoginSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-    setIsFormLoading(true);
-
-    if (!isOnline) {
-      setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
-      setIsFormLoading(false);
-      return;
-    }
-
-    if (!formData.username.trim()) {
-      setFormError('Foydalanuvchi ismini kiriting.');
-      setIsFormLoading(false);
-      return;
-    }
-    if (!formData.password) {
-      setFormError('Parolni kiriting.');
-      setIsFormLoading(false);
-      return;
-    }
-
-    try {
-      const response = await axios.post(
-        'https://hosilbek.pythonanywhere.com/api/token/',
-        {
-          username: formData.username.trim(),
-          password: formData.password,
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const { access: authToken, refresh: refreshToken } = response.data;
-
-      localStorage.setItem('authToken', authToken);
-      localStorage.setItem('refreshToken', refreshToken);
-
-      if (isMounted.current) {
-        setFormSuccess('Tizimga kirish muvaffaqiyatli!');
-        setTimeout(() => {
-          if (isMounted.current) {
-            setModalState({ type: null });
-            navigate('/profile');
-          }
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Login Error:', err.message, err.response?.data);
-      let errorMessage = 'Tizimga kirishda xatolik yuz berdi.';
-      if (err.response) {
-        if (err.response.status === 401) {
-          errorMessage = 'Noto‘g‘ri foydalanuvchi ismi yoki parol.';
-        } else if (err.response.status === 400) {
-          errorMessage = err.response.data.detail || 'Noto‘g‘ri ma‘lumotlar kiritildi.';
-        } else if (err.response.status === 500) {
-          errorMessage = 'Server xatosi. Iltimos, keyinroq urinib ko‘ring.';
-        }
-      } else if (err.request || err.message.includes('Network Error')) {
-        errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
-      }
-      if (isMounted.current) {
-        setFormError(errorMessage);
+      if (formData.username.length < 3) {
+        setFormError("Foydalanuvchi ismi kamida 3 belgidan iborat bo‘lishi kerak.");
         setIsFormLoading(false);
+        return;
       }
-    }
-  }, [formData, isOnline, navigate]);
+      const phoneRegex = /^\+998\d{9}$/;
+      if (!phoneRegex.test(formData.phone_number)) {
+        setFormError(
+          "Telefon raqami +998 bilan boshlanib, 9 ta raqamdan iborat bo‘lishi kerak."
+        );
+        setIsFormLoading(false);
+        return;
+      }
+      if (!formData.location) {
+        setFormError("Joylashuv maydonini to‘ldiring (masalan, Toshkent shahri).");
+        setIsFormLoading(false);
+        return;
+      }
+      if (formData.password.length < 6) {
+        setFormError("Parol kamida 6 belgidan iborat bo‘lishi kerak.");
+        setIsFormLoading(false);
+        return;
+      }
+
+      const payload = {
+        username: formData.username.trim(),
+        address: formData.address,
+        phone_number: formData.phone_number,
+        location: formData.location,
+        password: formData.password,
+        email: 'user@gmail.com',
+      };
+
+      try {
+        await axios.post('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', payload, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        const loginResponse = await axios.post(
+          'https://hosilbek.pythonanywhere.com/api/token/',
+          {
+            username: formData.username.trim(),
+            password: formData.password,
+          },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        const { access: authToken, refresh: refreshToken } = loginResponse.data;
+
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Fetch user profile after registration
+        const profileResponse = await makeAuthenticatedRequest({
+          method: 'get',
+          url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        let profileData = profileResponse.data;
+        if (Array.isArray(profileData)) {
+          profileData = profileData[0] || {};
+        }
+
+        if (!profileData.id) {
+          throw new Error('Created profile is invalid');
+        }
+
+        const formattedUserData = {
+          ...profileData,
+          avatar: profileData.avatar || defaultAvatar,
+          user: { username: formData.username.trim() },
+          stats: { orders: 0, favorites: 0, notifications: 0 },
+          phone_number: formData.phone_number,
+          address: formData.address,
+          location: formData.location,
+        };
+
+        if (isMounted.current) {
+          localStorage.setItem('userData', JSON.stringify(formattedUserData));
+          setFormSuccess("Ro‘yxatdan o‘tish muvaffaqiyatli! Profil sahifasiga o‘tilmoqda...");
+          setTimeout(() => {
+            if (isMounted.current) {
+              setModalState({ type: null });
+              setUserData(formattedUserData);
+              setError('');
+              navigate('/profile');
+            }
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Registration Error:', err.message, err.response?.data);
+        let errorMessage = "Ro‘yxatdan o‘tishda xatolik yuz berdi.";
+        if (err.response) {
+          if (err.response.status === 400) {
+            if (err.response.data.username) {
+              errorMessage = `Foydalanuvchi nomi band: ${err.response.data.username.join(' ')}`;
+            } else {
+              errorMessage = err.response.data.message || "Noto‘g‘ri ma‘lumotlar kiritildi.";
+            }
+          } else if (err.response.status === 500) {
+            errorMessage = "Server xatosi. Iltimos, keyinroq urinib ko‘ring.";
+          }
+        } else if (err.request || err.message.includes('Network Error')) {
+          errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
+        }
+        if (isMounted.current) {
+          setFormError(errorMessage);
+          setIsFormLoading(false);
+        }
+      }
+    },
+    [formData, isOnline, navigate, makeAuthenticatedRequest]
+  );
+
+  const handleLoginSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setFormError('');
+      setFormSuccess('');
+      setIsFormLoading(true);
+
+      if (!isOnline) {
+        setFormError('Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.');
+        setIsFormLoading(false);
+        return;
+      }
+
+      if (!formData.username.trim()) {
+        setFormError('Foydalanuvchi ismini kiriting.');
+        setIsFormLoading(false);
+        return;
+      }
+      if (!formData.password) {
+        setFormError('Parolni kiriting.');
+        setIsFormLoading(false);
+        return;
+      }
+
+      try {
+        const response = await axios.post(
+          'https://hosilbek.pythonanywhere.com/api/token/',
+          {
+            username: formData.username.trim(),
+            password: formData.password,
+          },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        const { access: authToken, refresh: refreshToken } = response.data;
+
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Fetch user profile after login
+        const profileResponse = await makeAuthenticatedRequest({
+          method: 'get',
+          url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        let profileData = profileResponse.data;
+        if (Array.isArray(profileData)) {
+          profileData = profileData[0] || {};
+        }
+
+        if (!profileData.id) {
+          throw new Error('No valid profile found after login');
+        }
+
+        const formattedUserData = {
+          ...profileData,
+          avatar: profileData.avatar || defaultAvatar,
+          user: profileData.user || { username: formData.username.trim() },
+          stats: {
+            orders: profileData.orders?.length || 0,
+            favorites: profileData.favorites?.length || 0,
+            notifications: profileData.notifications?.length || 0,
+          },
+          phone_number: profileData.phone_number || '',
+          address: profileData.address || '',
+          location: profileData.location || '',
+        };
+
+        if (isMounted.current) {
+          localStorage.setItem('userData', JSON.stringify(formattedUserData));
+          setFormSuccess('Tizimga kirish muvaffaqiyatli!');
+          setTimeout(() => {
+            if (isMounted.current) {
+              setModalState({ type: null });
+              setUserData(formattedUserData);
+              setError('');
+              navigate('/profile');
+            }
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Login Error:', err.message, err.response?.data);
+        let errorMessage = 'Tizimga kirishda xatolik yuz berdi.';
+        if (err.response) {
+          if (err.response.status === 401) {
+            errorMessage = 'Noto‘g‘ri foydalanuvchi ismi yoki parol.';
+          } else if (err.response.status === 400) {
+            errorMessage = err.response.data.detail || 'Noto‘g‘ri ma‘lumotlar kiritildi.';
+          } else if (err.response.status === 500) {
+            errorMessage = 'Server xatosi. Iltimos, keyinroq urinib ko‘ring.';
+          }
+        } else if (err.request || err.message.includes('Network Error')) {
+          errorMessage = 'Internet aloqasi yo‘q. Iltimos, tarmoqni tekshiring.';
+        }
+        if (isMounted.current) {
+          setFormError(errorMessage);
+          setIsFormLoading(false);
+        }
+      }
+    },
+    [formData, isOnline, navigate, makeAuthenticatedRequest]
+  );
 
   const handleFormClose = useCallback((event, reason) => {
     if (reason === 'clickaway') return;
@@ -702,9 +805,7 @@ const ProfilePage = () => {
         {/* Modal for Login/Register */}
         {modalState.type && (
           <ThemeProvider theme={theme}>
-            <div
-              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center"
-            >
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center sm:justify-center">
               <Fade in={!!modalState.type} timeout={500} key={modalState.type}>
                 <div
                   className="bg-white w-full sm:w-[90%] sm:max-w-md rounded-t-2xl sm:rounded-2xl h-[90%] sm:h-auto overflow-y-auto"
@@ -905,7 +1006,7 @@ const ProfilePage = () => {
                               <option value="">Profilni tanlang</option>
                               {availableProfiles.map((profile) => (
                                 <option key={profile.id} value={profile.id}>
-                                  {profile.user?.username || 'Noma\'lum'}
+                                  {profile.user?.username || 'Noma‘lum'}
                                 </option>
                               ))}
                             </select>
@@ -952,7 +1053,7 @@ const ProfilePage = () => {
                         </div>
                         {isFormLoading && (
                           <div className="h-1 w-full bg-gray-200 rounded">
-                            <div className="h-full bg-[#FF6200] rounded animate-pulse"></div>
+                            <div className="h-full bg-[#FF6200] rounded animate-pulse" />
                           </div>
                         )}
                         <button
