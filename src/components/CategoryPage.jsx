@@ -284,7 +284,7 @@ const CategoryPage = () => {
 
           {/* Subcategory Filter */}
           {subcategories.length > 1 && (
-            <div className="mb-4">
+            <div className="mb-4 max-w-sm mx-auto">
               <ul className="flex space-x-2 overflow-x-auto scrollbar-hide">
                 {subcategories.map((subcategory) => (
                   <li key={subcategory}>
