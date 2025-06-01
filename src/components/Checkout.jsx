@@ -20,25 +20,17 @@ import {
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
 const steps = ['Savat', 'Yetkazish', "To'lov"];
-
-// Google Maps API Key
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDpdheNdHd6ydObrXLdB8uDuGkWNhixgpY';
-
-// Map container style
 const mapContainerStyle = {
   height: '300px',
   width: '100%',
   borderRadius: '8px',
   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 };
-
-// Default map center (Toshkent)
 const defaultCenter = {
   lat: 40.901058,
   lng: 71.850070,
 };
-
-// Axios instance for API requests
 const api = axios.create({
   baseURL: 'https://hosilbek.pythonanywhere.com/api/',
   headers: {
