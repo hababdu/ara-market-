@@ -89,7 +89,7 @@ const ProductsList = () => {
       if (err.response?.status === 401) {
         errorMessage = "Autentifikatsiya xatosi: Iltimos, tizimga kiring.";
         localStorage.removeItem('authToken');
-        navigate('/login');
+        navigate('/profile');
       }
       setError(errorMessage);
       setCategories({});
