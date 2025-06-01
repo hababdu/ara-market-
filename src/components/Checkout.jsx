@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -18,8 +17,26 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
 const steps = ['Savat', 'Yetkazish', "To'lov"];
+
+// Google Maps API Key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDpdheNdHd6ydObrXLdB8uDuGkWNhixgpY';
+
+// Map container style
+const mapContainerStyle = {
+  height: '300px',
+  width: '100%',
+  borderRadius: '8px',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+};
+
+// Default map center (Toshkent)
+const defaultCenter = {
+  lat: 40.901058,
+  lng: 71.850070,
+};
 
 // Axios instance for API requests
 const api = axios.create({
@@ -29,7 +46,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor to handle token refresh
+// Interceptor to handle token refresh (unchanged)
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -112,6 +129,7 @@ const Checkout = () => {
   const [showBackDialog, setShowBackDialog] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
   const [deliveryInfo, setDeliveryInfo] = useState({
     address: '',
     phone: '',
@@ -120,6 +138,8 @@ const Checkout = () => {
     longitude: null,
     detected_at: null,
   });
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [markerPosition, setMarkerPosition] = useState(defaultCenter);
 
   const MIN_DELIVERY_FEE = 8000;
   const PER_KM_FEE = 1000;
@@ -214,11 +234,9 @@ const Checkout = () => {
     const dLat = ((kitchenLat - userLat) * Math.PI) / 180;
     const dLon = ((kitchenLon - userLon) * Math.PI) / 180;
     const a =
-      Math.sin(dLat / 2) * Math.sin((dLat / 2))
-      +
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((userLat * Math.PI) / 180) *
-      Math.cos((kitchenLat * Math.PI) / 180)
-      *
+      Math.cos((kitchenLat * Math.PI) / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
@@ -272,8 +290,9 @@ const Checkout = () => {
             longitude,
             detected_at: detectedAt,
           }));
+          setMapCenter({ lat: latitude, lng: longitude });
+          setMarkerPosition({ lat: latitude, lng: longitude });
 
-          // Show modal only if distance is available
           if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
             setShowSummaryModal(true);
           }
@@ -285,7 +304,8 @@ const Checkout = () => {
             longitude: position.coords.longitude,
             detected_at: new Date().toISOString(),
           }));
-          // Show modal only if distance is available
+          setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+          setMarkerPosition({ lat: position.coords.latitude, lng: position.coords.longitude });
           if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
             setShowSummaryModal(true);
           }
@@ -308,6 +328,50 @@ const Checkout = () => {
       }
     );
   }, [cartItems]);
+
+  const handleMapClick = useCallback((event) => {
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    setMarkerPosition({ lat, lng });
+    setDeliveryInfo((prev) => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+      detected_at: new Date().toISOString(),
+    }));
+    axios
+      .get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then((response) => {
+        const address = response.data.display_name || 'Manzil aniqlanmadi';
+        setDeliveryInfo((prev) => ({ ...prev, address }));
+      })
+      .catch((err) => {
+        console.error('Reverse geocoding error:', err);
+        setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
+      });
+  }, []);
+
+  const handleMarkerDrag = useCallback((event) => {
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    setMarkerPosition({ lat, lng });
+    setDeliveryInfo((prev) => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+      detected_at: new Date().toISOString(),
+    }));
+    axios
+      .get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then((response) => {
+        const address = response.data.display_name || 'Manzil aniqlanmadi';
+        setDeliveryInfo((prev) => ({ ...prev, address }));
+      })
+      .catch((err) => {
+        console.error('Reverse geocoding error:', err);
+        setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
+      });
+  }, []);
 
   const handleNextStep = useCallback(() => {
     if (activeStep === 0) {
@@ -432,6 +496,10 @@ const Checkout = () => {
     setShowSummaryModal(false);
   }, []);
 
+  const handleMapModalClose = useCallback(() => {
+    setShowMapModal(false);
+  }, []);
+
   const handleBrowserSettingsRedirect = useCallback(() => {
     if (navigator.userAgent.includes('Chrome')) {
       window.open('chrome://settings/content/location');
@@ -442,6 +510,19 @@ const Checkout = () => {
     }
     setShowLocationDialog(false);
   }, []);
+
+  const handleSelectLocation = useCallback(() => {
+    setDeliveryInfo((prev) => ({
+      ...prev,
+      latitude: markerPosition.lat.toFixed(6),
+      longitude: markerPosition.lng.toFixed(6),
+      detected_at: new Date().toISOString(),
+    }));
+    setShowMapModal(false);
+    if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
+      setShowSummaryModal(true);
+    }
+  }, [markerPosition, cartItems]);
 
   if (loading) {
     return (
@@ -624,37 +705,46 @@ const Checkout = () => {
                 <GpsFixedIcon className="text-[#FF6200] mr-2" fontSize="small" />
                 Joylashuv
               </p>
-              <button
-                onClick={detectLocation}
-                disabled={locationLoading}
-                className="w-full bg-[#FF6200] text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center disabled:bg-gray-300 disabled:cursor-not-allowed transition-all hover:bg-[#FFAB40] hover:scale-105 shadow-sm"
-              >
-                {locationLoading ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white mr-2"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      className="opacity-25"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V8H4z"
-                      className="opacity-75"
-                    />
-                  </svg>
-                ) : (
-                  <LocationSearchingIcon fontSize="small" className="mr-2" />
-                )}
-                {deliveryInfo.latitude ? "Joylashuvni yangilash" : "Joylashuvni aniqlash"}
-              </button>
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={detectLocation}
+                  disabled={locationLoading}
+                  className="flex-1 bg-[#FF6200] text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center disabled:bg-gray-300 disabled:cursor-not-allowed transition-all hover:bg-[#FFAB40] hover:scale-105 shadow-sm"
+                >
+                  {locationLoading ? (
+                    <svg
+                      className="animate-spin h-5 w-5 text-white mr-2"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        className="opacity-25"
+                      />
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V8H4z"
+                        className="opacity-75"
+                      />
+                    </svg>
+                  ) : (
+                    <LocationSearchingIcon fontSize="small" className="mr-2" />
+                  )}
+                  {deliveryInfo.latitude ? "Joylashuvni yangilash" : "Avtomatik aniqlash"}
+                </button>
+                <button
+                  onClick={() => setShowMapModal(true)}
+                  className="flex-1 bg-[#FF6200] text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center transition-all hover:bg-[#FFAB40] hover:scale-105 shadow-sm"
+                >
+                  <LocationIcon fontSize="small" className="mr-2" />
+                  Qo'lda tanlash
+                </button>
+              </div>
               {deliveryInfo.latitude && (
                 <div className="mt-2 flex gap-2 flex-wrap">
                   <span className="inline-flex items-center px-2 py-1 rounded-sm text-sm font-semibold text-green-700 border border-green-700">
@@ -747,7 +837,7 @@ const Checkout = () => {
                 <p className="text-sm text-gray-600">{deliveryInfo.address}</p>
               </li>
               {deliveryInfo.notes && (
-                <li className="flex items-center">
+                <li className="items-center">
                   <NotesIcon className="text-gray-500 mr-2" fontSize="small" />
                   <p className="text-sm text-gray-600">{deliveryInfo.notes}</p>
                 </li>
@@ -887,6 +977,77 @@ const Checkout = () => {
         </div>
       )}
 
+      {/* Map Modal */}
+      {showMapModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="map-modal-title">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-4 sm:p-6">
+            <div className="flex items-center mb-4">
+              <LocationIcon className="text-[#FF6200] mr-2" fontSize="small" />
+              <h3 id="map-modal-title" className="text-sm font-semibold text-gray-800">Joylashuvni tanlash</h3>
+            </div>
+            <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={13}
+                onClick={handleMapClick}
+              >
+                <Marker
+                  position={markerPosition}
+                  draggable={true}
+                  onDragEnd={handleMarkerDrag}
+                />
+              </GoogleMap>
+            </LoadScript>
+            <div className="mt-4">
+              <p className="text-sm text-gray-600 mb-2">Tanlangan manzil: {deliveryInfo.address}</p>
+              <div className="flex justify-between gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kenglik (Latitude)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={deliveryInfo.latitude || ''}
+                    onChange={(e) =>
+                      setDeliveryInfo((prev) => ({ ...prev, latitude: e.target.value }))
+                    }
+                    className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200] text-sm"
+                    readOnly
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Uzunlik (Longitude)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={deliveryInfo.longitude || ''}
+                    onChange={(e) =>
+                      setDeliveryInfo((prev) => ({ ...prev, longitude: e.target.value }))
+                    }
+                    className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200] text-sm"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={handleMapModalClose}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm font-semibold"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleSelectLocation}
+                className="bg-[#FF6200] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#FFAB40] transition-colors shadow-sm text-sm"
+              >
+                Tanlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dialogs */}
       {showLocationDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -896,7 +1057,7 @@ const Checkout = () => {
               <h3 className="text-sm font-semibold text-gray-800">Joylashuv ruxsati</h3>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              Buyurtma berish uchun joylashuv ma'lumotlari kerak. Iltimos, brauzer sozlamalarida joylashuv ruxsatini yoqing.
+              Buyurtma berish uchun joylashuv ma'lumotlari kerak. Iltimos, brauzer sozlamalarida joylashuv ruxsatini yoqing yoki xaritadan qo'lda tanlang.
             </p>
             <div className="flex justify-end gap-2">
               <button

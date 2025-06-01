@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Fastfood as FastfoodIcon,
-  AttachMoney as PriceIcon,
+  AttachMoney as MoneyIcon,
   LocalOffer as DiscountIcon,
   Close as CloseIcon,
   ShoppingCart as CartIcon,
@@ -16,14 +16,14 @@ const shuffleArray = (array) => {
   for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
+  };
   return newArray;
 };
 
 const ProductsList = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('all'); // New state for selected category
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -42,14 +42,28 @@ const ProductsList = () => {
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
   const addToCartButtonRef = useRef(null);
+  // Get auth token
+  const token = localStorage.getItem('authToken');
 
-  // Mahsulotlarni API dan yuklash
-  const fetchProducts = async () => {
+  // Mahsulotlarni API'dan yuklash
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(API_URL);
+      const response = await axios.get(API_URL, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '', // Use Bearer (or Token if required)
+        },
+      });
       let productsData = Array.isArray(response.data) ? response.data : [];
+
+      // Filter products where is_aktiv is true, optionally check kitchen.is_aktiv
+      productsData = productsData.filter((product) => 
+        product.is_aktiv === true && // Required: product must be active
+        (!product.kitchen || product.kitchen?.is_aktiv !== false) // Optional: kitchen must be active or or absent
+      );
+
+      // Shuffle filtered products
       productsData = shuffleArray(productsData);
 
       // Mahsulotlarni kategoriyalar bo'yicha guruhlash
@@ -60,18 +74,33 @@ const ProductsList = () => {
         return acc;
       }, {});
 
+      // Remove empty categories
+      Object.keys(grouped).forEach((category) => {
+        if (grouped[category].length === 0) {
+          delete grouped[category];
+        }
+      });
+
       setCategories(grouped);
+      console.log('Filtered active products:', productsData);
     } catch (err) {
-      setError(err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi");
+      console.error('Fetch error:', err.response?.data || err.message);
+      let errorMessage = err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi";
+      if (err.response?.status === 401) {
+        errorMessage = "Autentifikatsiya xatosi: Iltimos, tizimga kiring.";
+        localStorage.removeItem('authToken');
+        navigate('/login');
+      }
+      setError(errorMessage);
       setCategories({});
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, navigate]);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   // Savat ma'lumotlarini yangilash
   const updateCartData = useCallback(() => {
@@ -80,7 +109,7 @@ const ProductsList = () => {
     setCartCount(totalItems);
     const cartItem = cart.find((item) => item.id === selectedProduct?.id);
     setInCart(!!cartItem);
-  }, [selectedProduct]);
+    }, [selectedProduct]);
 
   useEffect(() => {
     updateCartData();
