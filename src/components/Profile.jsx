@@ -3,16 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Person as PersonIcon,
-  Home as HomeIcon,
   Phone as PhoneIcon,
-  LocationOn as LocationOnIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
   Visibility,
   VisibilityOff,
   Lock as LockIcon,
-  MyLocation as MyLocationIcon,
-  Email as EmailIcon,
 } from '@mui/icons-material';
 import {
   Box,
@@ -28,7 +24,6 @@ import {
   InputAdornment,
   IconButton,
   Fade,
-  Tooltip,
 } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -129,12 +124,8 @@ const ProfilePage = () => {
   const [modalState, setModalState] = useState({ type: null });
   const [formData, setFormData] = useState({
     username: '',
-    address: '',
     phone_number: '',
-    location: '',
     password: '',
-    email: '',
-    is_aktsya: false,
     selectedProfile: '',
   });
   const [formError, setFormError] = useState('');
@@ -353,71 +344,9 @@ const ProfilePage = () => {
   }, [navigate]);
 
   const handleFormChange = useCallback((e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   }, []);
-
-  const handleDetectLocation = useCallback(
-    async (retries = 3, delay = 2000) => {
-      setIsFormLoading(true);
-      setFormError('');
-
-      if (!navigator.geolocation) {
-        setFormError("Brauzeringiz geolokatsiyani qo‘llab-quvvatlamaydi.");
-        setIsFormLoading(false);
-        return;
-      }
-
-      const attemptLocation = async (attemptsLeft) => {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            if (!isMounted.current) return;
-            const { latitude, longitude } = position.coords;
-            try {
-              const response = await axios.get(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-              );
-              const placeName = response.data.address.city || response.data.address.suburb || 'Unknown';
-              setFormData((prev) => ({ ...prev, location: placeName }));
-              setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
-            } catch (err) {
-              setFormError('Joylashuv nomini aniqlashda xato yuz berdi.');
-              setFormData((prev) => ({
-                ...prev,
-                location: `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`,
-              }));
-            }
-            setIsFormLoading(false);
-          },
-          (err) => {
-            if (!isMounted.current) return;
-            console.error('Geolokatsiya xatosi:', err.message, 'Kod:', err.code);
-            if (err.code === 1) {
-              setFormError("Joylashuvga ruxsat berilmadi. Qo‘lda kiriting.");
-            } else if (err.code === 2) {
-              if (attemptsLeft > 0) {
-                setTimeout(() => attemptLocation(attemptsLeft - 1), delay);
-              } else {
-                setFormError('Joylashuvni aniqlash imkonsiz. Internet aloqasini tekshiring.');
-              }
-            } else if (err.code === 3) {
-              setFormError('Joylashuvni aniqlash vaqti o‘tdi. Qayta urinib ko‘ring.');
-            } else {
-              setFormError('Joylashuvni aniqlashda noma‘lum xatolik yuz berdi.');
-            }
-            setIsFormLoading(false);
-          },
-          { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
-        );
-      };
-
-      attemptLocation(retries);
-    },
-    []
-  );
 
   const handleClickShowPassword = useCallback(() => {
     setShowPassword((prev) => !prev);
@@ -449,31 +378,20 @@ const ProfilePage = () => {
         setIsFormLoading(false);
         return;
       }
-      if (!formData.location) {
-        setFormError("Joylashuv maydonini to‘ldiring (masalan, Toshkent shahri).");
-        setIsFormLoading(false);
-        return;
-      }
       if (formData.password.length < 6) {
         setFormError("Parol kamida 6 belgidan iborat bo‘lishi kerak.");
-        setIsFormLoading(false);
-        return;
-      }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setFormError("Yaroqli email manzilini kiriting.");
         setIsFormLoading(false);
         return;
       }
 
       const payload = {
         username: formData.username.trim(),
-        address: formData.address,
-        phone_number: formData.phone_number,
-        location: formData.location,
+        email: 'User@gmail.com',
         password: formData.password,
-        email: formData.email,
-        is_aktsya: formData.is_aktsya,
+        address: 'Baliqchi',
+        phone_number: formData.phone_number,
+        location: 'Baliqchi',
+        is_aktsya: false,
       };
 
       try {
@@ -517,10 +435,10 @@ const ProfilePage = () => {
           user: { username: formData.username.trim() },
           stats: { orders: 0, favorites: 0, notifications: 0 },
           phone_number: formData.phone_number,
-          address: formData.address,
-          location: formData.location,
-          email: formData.email,
-          is_aktsya: formData.is_aktsya,
+          address: 'Baliqchi',
+          location: 'Baliqchi',
+          email: 'User@gmail.com',
+          is_aktsya: false,
         };
 
         if (isMounted.current) {
@@ -682,12 +600,8 @@ const ProfilePage = () => {
     setModalState({ type: null });
     setFormData({
       username: '',
-      address: '',
       phone_number: '',
-      location: '',
       password: '',
-      email: '',
-      is_aktsya: false,
       selectedProfile: '',
     });
     setFormError('');
@@ -779,7 +693,7 @@ const ProfilePage = () => {
                       {userData.address && (
                         <>
                           <li className="flex items-center">
-                            <HomeIcon className="text-[#FF6200] mr-3" />
+                            <PhoneIcon className="text-[#FF6200] mr-3" />
                             <div>
                               <p className="font-semibold text-gray-700">Manzil</p>
                               <p className="text-gray-600">{userData.address}</p>
@@ -790,7 +704,7 @@ const ProfilePage = () => {
                       )}
                       {userData.location && (
                         <li className="flex items-center">
-                          <LocationOnIcon className="text-[#FF6200] mr-3" />
+                          <PhoneIcon className="text-[#FF6200] mr-3" />
                           <div>
                             <p className="font-semibold text-gray-700">Joylashuv</p>
                             <p className="text-gray-600">{userData.location}</p>
@@ -888,41 +802,6 @@ const ProfilePage = () => {
                           />
                           <TextField
                             fullWidth
-                            label="Email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleFormChange}
-                            margin="normal"
-                            type="email"
-                            required
-                            disabled={isFormLoading || !isOnline}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <EmailIcon color="action" />
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                          <TextField
-                            fullWidth
-                            label="Manzil"
-                            name="address"
-                            value={formData.address}
-                            onChange={handleFormChange}
-                            margin="normal"
-                            required
-                            disabled={isFormLoading || !isOnline}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <HomeIcon color="action" />
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                          <TextField
-                            fullWidth
                             label="Telefon raqami"
                             name="phone_number"
                             value={formData.phone_number}
@@ -940,39 +819,6 @@ const ProfilePage = () => {
                               ),
                             }}
                           />
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <TextField
-                              fullWidth
-                              label="Joylashuv (masalan, Toshkent shahri)"
-                              name="location"
-                              value={formData.location}
-                              onChange={handleFormChange}
-                              margin="normal"
-                              required
-                              placeholder="Toshkent shahri"
-                              disabled={isFormLoading || !isOnline}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <LocationOnIcon color="action" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                            <Tooltip title="Joriy joylashuvni aniqlash">
-                              <span>
-                                <IconButton
-                                  onClick={handleDetectLocation}
-                                  disabled={isFormLoading || !isOnline}
-                                  color="primary"
-                                  sx={{ mt: 1 }}
-                                  aria-label="Joriy joylashuvni aniqlash"
-                                >
-                                  <MyLocationIcon />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          </Box>
                           <TextField
                             fullWidth
                             label="Parol"
