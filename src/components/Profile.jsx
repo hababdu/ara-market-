@@ -317,6 +317,7 @@ const ProfilePage = () => {
 
         if (Array.isArray(response.data) && isMounted.current) {
           setAvailableProfiles(response.data);
+          console.log('Available profiles fetched:', response.data);
         } else if (isMounted.current) {
           setAvailableProfiles([]);
         }
