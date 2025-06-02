@@ -31,14 +31,27 @@ const defaultCenter = {
   lat: 40.901058,
   lng: 71.850070,
 };
+
+// Fallback bonus product for ID 175
+const fallbackBonusProduct = {
+  id: 175,
+  title: 'Cola 0.5L',
+  price: 0,
+  quantity: 1,
+  photo: 'https://hosilbek.pythonanywhere.com/media/products/cola_0.5L.jpg',
+  kitchen_id: 1,
+  kitchen_location: { latitude: 40.901058, longitude: 71.850070 },
+};
+
 const api = axios.create({
-  baseURL: 'https://hosilbek.pythonanywhere.com/api/',
+  baseURL: 'https://hosilbek.pythonanywhere.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// Interceptor to handle token refresh (unchanged)
+// Interceptor to handle token refresh
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -78,7 +91,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post('https://hosilbek.pythonanywhere.com/api/token/refresh/', {
+        const response = await axios.post('https://hosilbek.pythonanywhere.com/api/user/token/refresh/', {
           refresh: refreshToken,
         });
 
@@ -96,7 +109,7 @@ api.interceptors.response.use(
         localStorage.removeItem('authToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userData');
-        window.location.href = '/profile';
+        window.location.href = '/';
         return Promise.reject(err);
       }
     }
@@ -110,6 +123,8 @@ const Checkout = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [userData, setUserData] = useState(null);
+  const [isAktsya, setIsAktsya] = useState(false);
+  const [bonusProduct, setBonusProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -165,7 +180,7 @@ const Checkout = () => {
     if (!token) {
       setError('Sessiya tugagan. Iltimos, qayta kiring.');
       setLoading(false);
-      navigate('/profile');
+      navigate('/');
       return;
     }
 
@@ -176,12 +191,64 @@ const Checkout = () => {
         if (!parsedUser || !parsedUser.id) {
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Qayta kirish kerak.");
           setLoading(false);
-          navigate('/profile');
+          navigate('/');
           return;
         }
 
+        // Fetch user profile to get is_aktsya
+        let isAktsya = false;
+        try {
+          console.log('Fetching profile for user ID:', parsedUser.id);
+          const profileResponse = await api.get(`user/user-profiles/${parsedUser.id}/`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          isAktsya = profileResponse.data.is_aktsya || false;
+          console.log('Profile fetched successfully:', profileResponse.data);
+        } catch (err) {
+          console.warn('Failed to fetch user profile:', err);
+          if (err.response?.status === 404) {
+            setError("Foydalanuvchi profili topilmadi. Iltimos, administrator bilan bog'laning.");
+          } else if (err.code === 'ERR_NETWORK') {
+            setError("Server bilan bog'lanishda xatolik. Iltimos, internet aloqangizni tekshiring.");
+          } else {
+            setError("Foydalanuvchi ma'lumotlarini yuklashda xatolik.");
+          }
+          isAktsya = parsedUser.is_aktsya || false;
+        }
+
+        // Fetch bonus product (ID 175)
+        let bonusProductData = fallbackBonusProduct;
+        try {
+          const productResponse = await api.get('user/products/175/', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          const product = productResponse.data;
+          bonusProductData = {
+            id: product.id,
+            title: product.title,
+            price: 0, // Free bonus
+            quantity: 1,
+            photo: product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : fallbackBonusProduct.photo,
+            kitchen_id: product.kitchen_id || 1,
+            kitchen_location: product.kitchen_location || { latitude: 40.901058, longitude: 71.850070 },
+          };
+        } catch (err) {
+          console.warn('Failed to fetch bonus product (ID 175):', err);
+          setError("Bonus mahsulotni yuklashda xatolik. Standart bonus ishlatiladi.");
+        }
+
+        setBonusProduct(bonusProductData);
+
+        // Add bonus product to cart if is_aktsya is false
+        const updatedCart = isAktsya ? parsedCart : [...parsedCart, bonusProductData];
+
+        setIsAktsya(isAktsya);
         setUserData(parsedUser);
-        setCartItems(parsedCart);
+        setCartItems(updatedCart);
         setDeliveryInfo((prev) => ({
           ...prev,
           address: parsedUser.address || '',
@@ -427,7 +494,7 @@ const Checkout = () => {
           quantity: item.quantity,
           price: item.price,
         })),
-        total_amount: totalAmount,
+        total_amount: totalAmount.toFixed(2),
         shipping_address: deliveryInfo.address,
         contact_number: deliveryInfo.phone,
         notes: deliveryInfo.notes,
@@ -440,6 +507,7 @@ const Checkout = () => {
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
         distance: distance ? parseFloat(distance) : null,
+        bonus_applied: !isAktsya ? bonusProduct?.title || 'Bonus' : null,
       };
 
       const response = await api.post('user/create-order/', orderData, {
@@ -449,6 +517,26 @@ const Checkout = () => {
       });
 
       if (response.data?.id) {
+        if (!isAktsya) {
+          try {
+            await api.patch(
+              `user/user-profiles/${userData.id}/`,
+              {
+                is_aktsya: true
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+            setIsAktsya(true);
+          } catch (err) {
+            console.error('Error updating is_aktsya:', err);
+            setError("Bonus mahsulot qo'shildi, lekin foydalanuvchi ma'lumotlari yangilanmadi.");
+          }
+        }
+
         localStorage.removeItem('cart');
         setSuccess(`Buyurtma qabul qilindi! Raqam: #${response.data.id}`);
         setTimeout(() => navigate('/status'), 500);
@@ -465,7 +553,7 @@ const Checkout = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, courierFee, token, distance]);
+  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, courierFee, token, distance, isAktsya, bonusProduct]);
 
   const handleBack = useCallback(() => {
     setShowBackDialog(true);
@@ -555,7 +643,7 @@ const Checkout = () => {
           </button>
         </div>
         <button
-          onClick={() => navigate('/products')}
+          onClick={() => navigate('/')}
           className="bg-[#FF6200] hover:bg-[#FFAB40] text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:scale-105 flex items-center gap-2"
         >
           <ShoppingCartIcon fontSize="small" />
@@ -632,6 +720,16 @@ const Checkout = () => {
           </button>
         </div>
       )}
+      {!isAktsya && activeStep === 2 && bonusProduct && (
+        <div className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-md mb-4 flex items-center justify-between">
+          <span>Ilk buyurtmangiz uchun bonus sifatida {bonusProduct.title} qo'shildi!</span>
+          <button onClick={() => setSuccess(null)} className="ml-2">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="space-y-4">
@@ -644,7 +742,7 @@ const Checkout = () => {
                 <li key={item.id || index} className="flex items-center border-b border-gray-200 py-2 last:border-b-0">
                   <div className="relative mr-2">
                     <img
-                      src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : 'https://via.placeholder.com/28x28?text=Image'}
+                      src={item.photo || 'https://via.placeholder.com/28x28?text=Image'}
                       alt={item.title}
                       className="w-8 h-8 rounded-lg object-cover"
                     />
@@ -655,6 +753,9 @@ const Checkout = () => {
                   <div className="flex-1">
                     <p className="text-sm text-gray-800 truncate">{item.title}</p>
                     <p className="text-sm text-gray-600">{(item.price || 0).toLocaleString()} so'm</p>
+                    {item.id === bonusProduct?.id && (
+                      <p className="text-sm text-green-600">Bonus</p>
+                    )}
                   </div>
                   <p className="text-sm font-semibold text-gray-800">
                     {(item.quantity * (item.price || 0)).toLocaleString()} so'm
@@ -835,6 +936,41 @@ const Checkout = () => {
                 </li>
               )}
             </ul>
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Xulosa</h3>
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between">
+                <p className="text-sm text-gray-600">Oshxonaga narx:</p>
+                <p className="text-sm text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
+              </div>
+              {!isAktsya && bonusProduct && (
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-gray-600">Bonus:</p>
+                  <div className="flex items-center">
+                    <img
+                      src={bonusProduct.photo}
+                      alt="Bonus Product"
+                      className="w-6 h-6 rounded-lg object-cover mr-2"
+                    />
+                    <p className="text-sm text-green-600">{bonusProduct.title} (Bonus)</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <p className="text-sm text-gray-600">Yo‘l xaqqi:</p>
+                <p className="text-sm text-gray-600">{(courierFee || MIN_DELIVERY_FEE).toLocaleString()} so'm</p>
+              </div>
+              {distance && (
+                <div className="flex justify-between">
+                  <p className="text-sm text-gray-600">Masofa:</p>
+                  <p className="text-sm text-gray-600">{distance} km</p>
+                </div>
+              )}
+              <hr className="my-2 border-gray-200" />
+              <div className="flex justify-between">
+                <p className="text-sm font-semibold text-gray-800">Jami summa:</p>
+                <p className="text-sm font-semibold text-[#FF6200]">{totalWithCourier.toLocaleString()} so'm</p>
+              </div>
+            </div>
             <div className="flex justify-between mt-4">
               <button
                 onClick={handlePrevStep}
@@ -903,6 +1039,19 @@ const Checkout = () => {
                   <p className="text-sm text-gray-600">Oshxonaga narx:</p>
                   <p className="text-sm text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
                 </div>
+                {!isAktsya && bonusProduct && (
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-600">Bonus:</p>
+                    <div className="flex items-center">
+                      <img
+                        src={bonusProduct.photo}
+                        alt="Bonus Product"
+                        className="w-6 h-6 rounded-lg object-cover mr-2"
+                      />
+                      <p className="text-sm text-green-600">{bonusProduct.title} (Bonus)</p>
+                    </div>
+                  </div>
+                )}
                 {distance && (
                   <>
                     <div className="flex justify-between">
@@ -939,6 +1088,19 @@ const Checkout = () => {
                 <p className="text-sm text-gray-600">Oshxonaga narx:</p>
                 <p className="text-sm text-gray-600">{calculateTotal.toLocaleString()} so'm</p>
               </div>
+              {!isAktsya && bonusProduct && (
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-gray-600">Bonus:</p>
+                  <div className="flex items-center">
+                    <img
+                      src={bonusProduct.photo}
+                      alt="Bonus Product"
+                      className="w-6 h-6 rounded-lg object-cover mr-2"
+                    />
+                    <p className="text-sm text-green-600">{bonusProduct.title} (Bonus)</p>
+                  </div>
+                </div>
+              )}
               {distance && (
                 <>
                   <div className="flex justify-between">

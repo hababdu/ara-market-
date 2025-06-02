@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -13,6 +12,7 @@ import {
   VisibilityOff,
   Lock as LockIcon,
   MyLocation as MyLocationIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import {
   Box,
@@ -133,6 +133,8 @@ const ProfilePage = () => {
     phone_number: '',
     location: '',
     password: '',
+    email: '',
+    is_aktsya: false,
     selectedProfile: '',
   });
   const [formError, setFormError] = useState('');
@@ -283,6 +285,8 @@ const ProfilePage = () => {
           phone_number: profileData.phone_number || '',
           address: profileData.address || '',
           location: profileData.location || '',
+          email: profileData.email || '',
+          is_aktsya: profileData.is_aktsya || false,
         };
 
         if (isMounted.current) {
@@ -349,12 +353,15 @@ const ProfilePage = () => {
   }, [navigate]);
 
   const handleFormChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   }, []);
 
   const handleDetectLocation = useCallback(
-    (retries = 3, delay = 2000) => {
+    async (retries = 3, delay = 2000) => {
       setIsFormLoading(true);
       setFormError('');
 
@@ -364,14 +371,25 @@ const ProfilePage = () => {
         return;
       }
 
-      const attemptLocation = (attemptsLeft) => {
+      const attemptLocation = async (attemptsLeft) => {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
+          async (position) => {
             if (!isMounted.current) return;
             const { latitude, longitude } = position.coords;
-            const location = `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`;
-            setFormData((prev) => ({ ...prev, location }));
-            setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
+            try {
+              const response = await axios.get(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              );
+              const placeName = response.data.address.city || response.data.address.suburb || 'Unknown';
+              setFormData((prev) => ({ ...prev, location: placeName }));
+              setFormSuccess('Joylashuv muvaffaqiyatli aniqlandi!');
+            } catch (err) {
+              setFormError('Joylashuv nomini aniqlashda xato yuz berdi.');
+              setFormData((prev) => ({
+                ...prev,
+                location: `Kenglik: ${latitude.toFixed(4)}, Uzunlik: ${longitude.toFixed(4)}`,
+              }));
+            }
             setIsFormLoading(false);
           },
           (err) => {
@@ -441,6 +459,12 @@ const ProfilePage = () => {
         setIsFormLoading(false);
         return;
       }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setFormError("Yaroqli email manzilini kiriting.");
+        setIsFormLoading(false);
+        return;
+      }
 
       const payload = {
         username: formData.username.trim(),
@@ -448,7 +472,8 @@ const ProfilePage = () => {
         phone_number: formData.phone_number,
         location: formData.location,
         password: formData.password,
-        email: 'user@gmail.com',
+        email: formData.email,
+        is_aktsya: formData.is_aktsya,
       };
 
       try {
@@ -494,6 +519,8 @@ const ProfilePage = () => {
           phone_number: formData.phone_number,
           address: formData.address,
           location: formData.location,
+          email: formData.email,
+          is_aktsya: formData.is_aktsya,
         };
 
         if (isMounted.current) {
@@ -515,6 +542,8 @@ const ProfilePage = () => {
           if (err.response.status === 400) {
             if (err.response.data.username) {
               errorMessage = `Foydalanuvchi nomi band: ${err.response.data.username.join(' ')}`;
+            } else if (err.response.data.email) {
+              errorMessage = `Email band: ${err.response.data.email.join(' ')}`;
             } else {
               errorMessage = err.response.data.message || "Noto‘g‘ri ma‘lumotlar kiritildi.";
             }
@@ -600,6 +629,8 @@ const ProfilePage = () => {
           phone_number: profileData.phone_number || '',
           address: profileData.address || '',
           location: profileData.location || '',
+          email: profileData.email || '',
+          is_aktsya: profileData.is_aktsya || false,
         };
 
         if (isMounted.current) {
@@ -655,6 +686,8 @@ const ProfilePage = () => {
       phone_number: '',
       location: '',
       password: '',
+      email: '',
+      is_aktsya: false,
       selectedProfile: '',
     });
     setFormError('');
@@ -723,6 +756,9 @@ const ProfilePage = () => {
                     <h2 className="text-2xl font-bold text-gray-800">
                       {userData.user?.username || 'Foydalanuvchi'}
                     </h2>
+                    {userData.email && (
+                      <p className="text-gray-600 mt-1">{userData.email}</p>
+                    )}
                   </div>
 
                   {/* Profile Details */}
@@ -846,6 +882,24 @@ const ProfilePage = () => {
                               startAdornment: (
                                 <InputAdornment position="start">
                                   <PersonIcon color="action" />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <TextField
+                            fullWidth
+                            label="Email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            type="email"
+                            required
+                            disabled={isFormLoading || !isOnline}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <EmailIcon color="action" />
                                 </InputAdornment>
                               ),
                             }}
@@ -998,7 +1052,14 @@ const ProfilePage = () => {
                             <select
                               name="selectedProfile"
                               value={formData.selectedProfile}
-                              onChange={handleFormChange}
+                              onChange={(e) => {
+                                const selected = availableProfiles.find((p) => p.id === e.target.value);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  selectedProfile: e.target.value,
+                                  username: selected?.user?.username || prev.username,
+                                }));
+                              }}
                               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6200] focus:border-[#FF6200]"
                               aria-label="Foydalanuvchi profilini tanlash"
                               disabled={isFormLoading || !isOnline}
