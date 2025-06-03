@@ -180,7 +180,7 @@ const Checkout = () => {
     if (!token) {
       setError('Sessiya tugagan. Iltimos, qayta kiring.');
       setLoading(false);
-      navigate('/');
+      navigate('/profile');
       return;
     }
 
@@ -191,7 +191,7 @@ const Checkout = () => {
         if (!parsedUser || !parsedUser.id) {
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Qayta kirish kerak.");
           setLoading(false);
-          navigate('/');
+          navigate('/profile');
           return;
         }
 
