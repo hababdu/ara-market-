@@ -1,12 +1,12 @@
 import React from 'react';
-import ProductList from './ProductList';
-function Home() {
-  
+import ProductsList from './ProductList'; // This could cause the error if ProductsList.jsx fails
+
+const Home = () => {
   return (
     <div>
-     <ProductList></ProductList>
+      <ProductsList />
     </div>
   );
-}
+};
 
 export default Home;

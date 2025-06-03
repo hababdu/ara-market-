@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo ,memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -180,7 +180,7 @@ const Checkout = () => {
     if (!token) {
       setError('Sessiya tugagan. Iltimos, qayta kiring.');
       setLoading(false);
-      navigate('/');
+      navigate('/profile');
       return;
     }
 
@@ -191,21 +191,19 @@ const Checkout = () => {
         if (!parsedUser || !parsedUser.id) {
           setError("Foydalanuvchi ma'lumotlari noto'g'ri. Qayta kirish kerak.");
           setLoading(false);
-          navigate('/');
+          navigate('/profile');
           return;
         }
 
         // Fetch user profile to get is_aktsya
         let isAktsya = false;
         try {
-          console.log('Fetching profile for user ID:', parsedUser.id);
           const profileResponse = await api.get(`user/user-profiles/${parsedUser.id}/`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
           isAktsya = profileResponse.data.is_aktsya || false;
-          console.log('Profile fetched successfully:', profileResponse.data);
         } catch (err) {
           console.warn('Failed to fetch user profile:', err);
           if (err.response?.status === 404) {
@@ -1259,4 +1257,4 @@ const Checkout = () => {
   );
 };
 
-export default Checkout;
+export default memo(Checkout);

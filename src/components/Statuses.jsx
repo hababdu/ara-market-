@@ -120,7 +120,6 @@ const ActiveOrdersDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(Array.isArray(response.data) ? response.data : []);
-      console.log('Fetched orders:', response.data);
       setLastFetch(new Date().toISOString());
     } catch (err) {
       let errorMessage = 'Buyurtmalarni olishda xato';
@@ -612,4 +611,4 @@ const ActiveOrdersDashboard = () => {
   );
 };
 
-export default ActiveOrdersDashboard;
+export default ActiveOrdersDashboard;   
