@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo ,memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -17,16 +17,22 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
+// Steps for checkout process
 const steps = ['Savat', 'Yetkazish', "To'lov"];
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDpdheNdHd6ydObrXLdB8uDuGkWNhixgpY';
+
+// Yandex Maps API key (replace with your own key from https://developer.tech.yandex.com/)
+const YANDEX_MAPS_API_KEY = ''; // Replace with your actual Yandex Maps API key
+
+// Map container styles
 const mapContainerStyle = {
   height: '300px',
   width: '100%',
   borderRadius: '8px',
   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 };
+
+// Default center for the map (e.g., Namangan, Uzbekistan)
 const defaultCenter = {
   lat: 40.901058,
   lng: 71.850070,
@@ -43,6 +49,7 @@ const fallbackBonusProduct = {
   kitchen_location: { latitude: 40.901058, longitude: 71.850070 },
 };
 
+// Axios instance for API calls
 const api = axios.create({
   baseURL: 'https://hosilbek.pythonanywhere.com/api',
   headers: {
@@ -147,13 +154,28 @@ const Checkout = () => {
   });
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [markerPosition, setMarkerPosition] = useState(defaultCenter);
+  const [yandexMap, setYandexMap] = useState(null);
+  const [yandexMarker, setYandexMarker] = useState(null);
+  const [routeDistance, setRouteDistance] = useState(null); // Store route-based distance
 
-  const MIN_DELIVERY_FEE = 8000;
-  const PER_KM_FEE = 1000;
+  const MIN_DELIVERY_FEE = 8000; // 8000 so‘m
+  const PER_KM_FEE = 1000; // Kilometriga 1000 so‘m
 
-  const user = localStorage.getItem('userData');
-  const cart = localStorage.getItem('cart') || '[]';
-  const token = localStorage.getItem('authToken');
+  // Load Yandex Maps API script dynamically
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${YANDEX_MAPS_API_KEY}&lang=uz_UZ`;
+    script.async = true;
+    script.onload = () => {
+      window.ymaps.ready(() => {
+        // Initialize map when modal is opened
+      });
+    };
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   // Handle window resize for mobile detection
   useEffect(() => {
@@ -164,8 +186,8 @@ const Checkout = () => {
 
   const parsedData = useMemo(() => {
     try {
-      const parsedUser = JSON.parse(user || '{}');
-      const parsedCart = JSON.parse(cart);
+      const parsedUser = JSON.parse(localStorage.getItem('userData') || '{}');
+      const parsedCart = JSON.parse(localStorage.getItem('cart') || '[]');
       return {
         user: parsedUser,
         cart: Array.isArray(parsedCart) ? parsedCart : [],
@@ -174,9 +196,10 @@ const Checkout = () => {
       console.error('Error parsing localStorage:', e);
       return { user: null, cart: [] };
     }
-  }, [user, cart]);
+  }, []);
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
     if (!token) {
       setError('Sessiya tugagan. Iltimos, qayta kiring.');
       setLoading(false);
@@ -228,7 +251,7 @@ const Checkout = () => {
           bonusProductData = {
             id: product.id,
             title: product.title,
-            price: 0, // Free bonus
+            price: 0,
             quantity: 1,
             photo: product.photo ? `https://hosilbek.pythonanywhere.com${product.photo}` : fallbackBonusProduct.photo,
             kitchen_id: product.kitchen_id || 1,
@@ -261,7 +284,7 @@ const Checkout = () => {
     };
 
     loadData();
-  }, [navigate, token, parsedData]);
+  }, [navigate, parsedData]);
 
   const calculateTotal = useMemo(() => {
     if (!cartItems || !Array.isArray(cartItems)) return 0;
@@ -272,49 +295,148 @@ const Checkout = () => {
     }, 0);
   }, [cartItems]);
 
-  const calculateDistanceAndCourierFee = useCallback(() => {
+  // Calculate route-based distance and courier fee using Yandex Maps API
+  const calculateDistanceAndCourierFee = useCallback(async () => {
     if (
       !deliveryInfo.latitude ||
       !deliveryInfo.longitude ||
       !cartItems[0]?.kitchen_location?.latitude ||
-      !cartItems[0]?.kitchen_location?.longitude
+      !cartItems[0]?.kitchen_location?.longitude ||
+      !window.ymaps
     ) {
       return { distance: null, courierFee: MIN_DELIVERY_FEE };
     }
 
-    const userLat = deliveryInfo.latitude;
-    const userLon = deliveryInfo.longitude;
-    const kitchenLat = cartItems[0].kitchen_location.latitude;
-    const kitchenLon = cartItems[0].kitchen_location.longitude;
+    try {
+      const userCoords = [deliveryInfo.latitude, deliveryInfo.longitude];
+      const kitchenCoords = [cartItems[0].kitchen_location.latitude, cartItems[0].kitchen_location.longitude];
 
-    const R = 6371; // Earth's radius in km
-    const dLat = ((kitchenLat - userLat) * Math.PI) / 180;
-    const dLon = ((kitchenLon - userLon) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((userLat * Math.PI) / 180) *
-      Math.cos((kitchenLat * Math.PI) / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
+      // Use Yandex Maps routing API
+      const route = await window.ymaps.route([userCoords, kitchenCoords], {
+        mapStateAutoApply: true,
+        routingMode: 'auto', // Use road-based routing
+      });
 
-    const courierFee = MIN_DELIVERY_FEE + Math.round(distance * PER_KM_FEE);
+      // Get distance in kilometers
+      const distanceInMeters = route.getLength();
+      const distance = (distanceInMeters / 1000).toFixed(2); // Convert to kilometers
+      const courierFee = Math.max(MIN_DELIVERY_FEE, Math.round(parseFloat(distance) * PER_KM_FEE));
 
-    return {
-      distance: distance.toFixed(2),
-      courierFee,
-    };
+      setRouteDistance(distance);
+      return {
+        distance,
+        courierFee,
+      };
+    } catch (err) {
+      console.error('Yandex Maps routing error:', err);
+      return { distance: null, courierFee: MIN_DELIVERY_FEE };
+    }
   }, [deliveryInfo.latitude, deliveryInfo.longitude, cartItems]);
 
-  const { distance, courierFee } = useMemo(
-    () => calculateDistanceAndCourierFee(),
-    [calculateDistanceAndCourierFee]
-  );
+  const { distance, courierFee } = useMemo(() => {
+    const result = calculateDistanceAndCourierFee();
+    return result instanceof Promise
+      ? { distance: routeDistance, courierFee: MIN_DELIVERY_FEE }
+      : result;
+  }, [calculateDistanceAndCourierFee, routeDistance]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setDeliveryInfo((prev) => ({ ...prev, [name]: value }));
   }, []);
+
+  // Initialize Yandex Map when modal opens
+  const initializeYandexMap = useCallback(() => {
+    if (window.ymaps && showMapModal && !yandexMap) {
+      const map = new window.ymaps.Map('yandex-map', {
+        center: [mapCenter.lat, mapCenter.lng],
+        zoom: 13,
+        controls: ['zoomControl', 'geolocationControl'],
+      });
+
+      const marker = new window.ymaps.Placemark(
+        [markerPosition.lat, markerPosition.lng],
+        { hintContent: 'Tanlangan joy' },
+        { draggable: true }
+      );
+
+      map.geoObjects.add(marker);
+      setYandexMap(map);
+      setYandexMarker(marker);
+
+      // Handle map click
+      map.events.add('click', (e) => {
+        const coords = e.get('coords');
+        const lat = coords[0].toFixed(6);
+        const lng = coords[1].toFixed(6);
+        setMarkerPosition({ lat: parseFloat(lat), lng: parseFloat(lng) });
+        setDeliveryInfo((prev) => ({
+          ...prev,
+          latitude: lat,
+          longitude: lng,
+          detected_at: new Date().toISOString(),
+        }));
+
+        // Reverse geocoding with Yandex
+        window.ymaps.geocode(coords).then((res) => {
+          const firstGeoObject = res.geoObjects.get(0);
+          const address = firstGeoObject ? firstGeoObject.getAddressLine() : 'Manzil aniqlanmadi';
+          setDeliveryInfo((prev) => ({ ...prev, address }));
+          // Calculate distance and show summary modal
+          calculateDistanceAndCourierFee().then(() => {
+            if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
+              setShowSummaryModal(true);
+            }
+          });
+        }).catch((err) => {
+          console.error('Yandex reverse geocoding error:', err);
+          setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
+        });
+      });
+
+      // Handle marker drag
+      marker.events.add('dragend', () => {
+        const coords = marker.geometry.getCoordinates();
+        const lat = coords[0].toFixed(6);
+        const lng = coords[1].toFixed(6);
+        setMarkerPosition({ lat: parseFloat(lat), lng: parseFloat(lng) });
+        setDeliveryInfo((prev) => ({
+          ...prev,
+          latitude: lat,
+          longitude: lng,
+          detected_at: new Date().toISOString(),
+        }));
+
+        // Reverse geocoding with Yandex
+        window.ymaps.geocode(coords).then((res) => {
+          const firstGeoObject = res.geoObjects.get(0);
+          const address = firstGeoObject ? firstGeoObject.getAddressLine() : 'Manzil aniqlanmadi';
+          setDeliveryInfo((prev) => ({ ...prev, address }));
+          // Calculate distance and show summary modal
+          calculateDistanceAndCourierFee().then(() => {
+            if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
+              setShowSummaryModal(true);
+            }
+          });
+        }).catch((err) => {
+          console.error('Yandex reverse geocoding error:', err);
+          setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
+        });
+      });
+
+      return () => {
+        map.destroy();
+        setYandexMap(null);
+        setYandexMarker(null);
+      };
+    }
+  }, [showMapModal, mapCenter, markerPosition, yandexMap, cartItems, calculateDistanceAndCourierFee]);
+
+  useEffect(() => {
+    if (showMapModal) {
+      initializeYandexMap();
+    }
+  }, [showMapModal, initializeYandexMap]);
 
   const detectLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -334,11 +456,10 @@ const Checkout = () => {
           const { latitude, longitude } = position.coords;
           const detectedAt = new Date().toISOString();
 
-          const response = await axios.get(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-
-          const address = response.data.display_name || 'Manzil aniqlanmadi';
+          // Use Yandex Maps for reverse geocoding
+          const response = await window.ymaps.geocode([latitude, longitude]);
+          const firstGeoObject = response.geoObjects.get(0);
+          const address = firstGeoObject ? firstGeoObject.getAddressLine() : 'Manzil aniqlanmadi';
 
           setDeliveryInfo((prev) => ({
             ...prev,
@@ -350,11 +471,13 @@ const Checkout = () => {
           setMapCenter({ lat: latitude, lng: longitude });
           setMarkerPosition({ lat: latitude, lng: longitude });
 
+          // Calculate distance and show summary modal
           if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
+            await calculateDistanceAndCourierFee();
             setShowSummaryModal(true);
           }
         } catch (err) {
-          console.error('Reverse geocoding error:', err);
+          console.error('Yandex geocoding error:', err);
           setDeliveryInfo((prev) => ({
             ...prev,
             latitude: position.coords.latitude,
@@ -364,6 +487,7 @@ const Checkout = () => {
           setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
           setMarkerPosition({ lat: position.coords.latitude, lng: position.coords.longitude });
           if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
+            await calculateDistanceAndCourierFee();
             setShowSummaryModal(true);
           }
         } finally {
@@ -384,51 +508,7 @@ const Checkout = () => {
         maximumAge: 0,
       }
     );
-  }, [cartItems]);
-
-  const handleMapClick = useCallback((event) => {
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
-    setMarkerPosition({ lat, lng });
-    setDeliveryInfo((prev) => ({
-      ...prev,
-      latitude: lat.toFixed(6),
-      longitude: lng.toFixed(6),
-      detected_at: new Date().toISOString(),
-    }));
-    axios
-      .get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-      .then((response) => {
-        const address = response.data.display_name || 'Manzil aniqlanmadi';
-        setDeliveryInfo((prev) => ({ ...prev, address }));
-      })
-      .catch((err) => {
-        console.error('Reverse geocoding error:', err);
-        setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
-      });
-  }, []);
-
-  const handleMarkerDrag = useCallback((event) => {
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
-    setMarkerPosition({ lat, lng });
-    setDeliveryInfo((prev) => ({
-      ...prev,
-      latitude: lat.toFixed(6),
-      longitude: lng.toFixed(6),
-      detected_at: new Date().toISOString(),
-    }));
-    axios
-      .get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-      .then((response) => {
-        const address = response.data.display_name || 'Manzil aniqlanmadi';
-        setDeliveryInfo((prev) => ({ ...prev, address }));
-      })
-      .catch((err) => {
-        console.error('Reverse geocoding error:', err);
-        setDeliveryInfo((prev) => ({ ...prev, address: 'Manzil aniqlanmadi' }));
-      });
-  }, []);
+  }, [cartItems, calculateDistanceAndCourierFee]);
 
   const handleNextStep = useCallback(() => {
     if (activeStep === 0) {
@@ -504,13 +584,13 @@ const Checkout = () => {
         latitude: deliveryInfo.latitude,
         longitude: deliveryInfo.longitude,
         detected_at: deliveryInfo.detected_at,
-        distance: distance ? parseFloat(distance) : null,
+        distance: routeDistance ? parseFloat(routeDistance) : null,
         bonus_applied: !isAktsya ? bonusProduct?.title || 'Bonus' : null,
       };
 
       const response = await api.post('user/create-order/', orderData, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
         },
       });
 
@@ -519,12 +599,10 @@ const Checkout = () => {
           try {
             await api.patch(
               `user/user-profiles/${userData.id}/`,
-              {
-                is_aktsya: true
-              },
+              { is_aktsya: true },
               {
                 headers: {
-                  Authorization: `Bearer ${token}`,
+                  Authorization: `Bearer ${localStorage.getItem('authToken')}`,
                 },
               }
             );
@@ -551,7 +629,7 @@ const Checkout = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, courierFee, token, distance, isAktsya, bonusProduct]);
+  }, [cartItems, deliveryInfo, navigate, userData, calculateTotal, courierFee, routeDistance, isAktsya, bonusProduct]);
 
   const handleBack = useCallback(() => {
     setShowBackDialog(true);
@@ -576,7 +654,12 @@ const Checkout = () => {
 
   const handleMapModalClose = useCallback(() => {
     setShowMapModal(false);
-  }, []);
+    if (yandexMap) {
+      yandexMap.destroy();
+      setYandexMap(null);
+      setYandexMarker(null);
+    }
+  }, [yandexMap]);
 
   const handleBrowserSettingsRedirect = useCallback(() => {
     if (navigator.userAgent.includes('Chrome')) {
@@ -598,9 +681,11 @@ const Checkout = () => {
     }));
     setShowMapModal(false);
     if (cartItems[0]?.kitchen_location?.latitude && cartItems[0]?.kitchen_location?.longitude) {
-      setShowSummaryModal(true);
+      calculateDistanceAndCourierFee().then(() => {
+        setShowSummaryModal(true);
+      });
     }
-  }, [markerPosition, cartItems]);
+  }, [markerPosition, cartItems, calculateDistanceAndCourierFee]);
 
   if (loading) {
     return (
@@ -842,10 +927,10 @@ const Checkout = () => {
                     <CheckCircleIcon fontSize="small" className="mr-1" />
                     Joylashuv aniqlangan
                   </span>
-                  {distance && (
+                  {routeDistance && (
                     <span className="inline-flex items-center px-2 py-1 rounded-sm text-sm font-semibold text-[#FF6200] border border-[#FF6200]">
                       <DeliveryIcon fontSize="small" className="mr-1" />
-                      Masofa: {distance} km
+                      Masofa: {routeDistance} km
                     </span>
                   )}
                 </div>
@@ -957,10 +1042,10 @@ const Checkout = () => {
                 <p className="text-sm text-gray-600">Yo‘l xaqqi:</p>
                 <p className="text-sm text-gray-600">{(courierFee || MIN_DELIVERY_FEE).toLocaleString()} so'm</p>
               </div>
-              {distance && (
+              {routeDistance && (
                 <div className="flex justify-between">
                   <p className="text-sm text-gray-600">Masofa:</p>
-                  <p className="text-sm text-gray-600">{distance} km</p>
+                  <p className="text-sm text-gray-600">{routeDistance} km</p>
                 </div>
               )}
               <hr className="my-2 border-gray-200" />
@@ -1050,7 +1135,7 @@ const Checkout = () => {
                     </div>
                   </div>
                 )}
-                {distance && (
+                {routeDistance && (
                   <>
                     <div className="flex justify-between">
                       <p className="text-sm text-gray-600">Yo‘l xaqqi:</p>
@@ -1058,7 +1143,7 @@ const Checkout = () => {
                     </div>
                     <div className="flex justify-between">
                       <p className="text-sm text-gray-600">Masofa:</p>
-                      <p className="text-sm text-gray-600">{distance} km</p>
+                      <p className="text-sm text-gray-600">{routeDistance} km</p>
                     </div>
                   </>
                 )}
@@ -1099,17 +1184,29 @@ const Checkout = () => {
                   </div>
                 </div>
               )}
-              {distance && (
-                <>
-                  <div className="flex justify-between">
-                    <p className="text-sm text-gray-600">Yo‘l xaqqi:</p>
-                    <p className="text-sm text-gray-600">{courierFee.toLocaleString()} so'm</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <p className="text-sm text-gray-600">Masofa:</p>
-                    <p className="text-sm text-gray-600">{distance} km</p>
-                  </div>
-                </>
+              <div className="flex justify-between">
+                <p className="text-sm text-gray-600">Yo‘l xaqqi:</p>
+                <p className="text-sm text-gray-600">{(courierFee || MIN_DELIVERY_FEE).toLocaleString()} so'm</p>
+              </div>
+              {routeDistance && (
+                <div className="flex justify-between">
+                  <p className="text-sm text-gray-600">Masofa:</p>
+                  <p className="text-sm text-gray-600">{routeDistance} km</p>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <p className="text-sm text-gray-600">Telefon raqami:</p>
+                <p className="text-sm text-gray-600">{deliveryInfo.phone || 'N/A'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-sm text-gray-600">Manzil:</p>
+                <p className="text-sm text-gray-600">{deliveryInfo.address || 'N/A'}</p>
+              </div>
+              {deliveryInfo.notes && (
+                <div className="flex justify-between">
+                  <p className="text-sm text-gray-600">Izohlar:</p>
+                  <p className="text-sm text-gray-600">{deliveryInfo.notes}</p>
+                </div>
               )}
               <hr className="my-2 border-gray-200" />
               <div className="flex justify-between">
@@ -1137,20 +1234,7 @@ const Checkout = () => {
               <LocationIcon className="text-[#FF6200] mr-2" fontSize="small" />
               <h3 id="map-modal-title" className="text-sm font-semibold text-gray-800">Joylashuvni tanlash</h3>
             </div>
-            <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={mapCenter}
-                zoom={13}
-                onClick={handleMapClick}
-              >
-                <Marker
-                  position={markerPosition}
-                  draggable={true}
-                  onDragEnd={handleMarkerDrag}
-                />
-              </GoogleMap>
-            </LoadScript>
+            <div id="yandex-map" style={mapContainerStyle}></div>
             <div className="mt-4">
               <p className="text-sm text-gray-600 mb-2">Tanlangan manzil: {deliveryInfo.address}</p>
               <div className="flex justify-between gap-2">
