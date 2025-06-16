@@ -133,8 +133,8 @@ const Checkout = () => {
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [markerPosition, setMarkerPosition] = useState(defaultCenter);
 
-  const MIN_DELIVERY_FEE = 8000;
-  const PER_KM_FEE = 1000;
+  const MIN_DELIVERY_FEE = 5000;
+  const PER_KM_FEE = 2900;
 
   const user = localStorage.getItem('userData');
   const cart = localStorage.getItem('cart') || '[]';
@@ -315,7 +315,7 @@ const Checkout = () => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 8000,
+        timeout: 5000,
         maximumAge: 0,
       }
     );
