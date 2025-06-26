@@ -1,34 +1,39 @@
 @import "tailwindcss";
 
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Slayder konteyneri */
+.slick-slider {
+  margin: 0 -10px;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Har bir slayd */
+.slick-slide {
+  padding: 0 10px;
+  box-sizing: border-box;
 }
-@layer utilities {
-  /* Smooth flying animation for the product */
-  .animate-fly-to-cart {
-    animation: fly-to-cart 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-  }
 
-  @keyframes fly-to-cart {
-    0% {
-      transform: translate(0, 0) scale(1);
-      opacity: 1;
-    }
-   
-    100% {
-      transform: translate(var(--end-x), var(--end-y)) scale(0.5);
-      opacity: 0.5;
-    }
-  }
+/* O'qchalar dizayni */
+.slick-prev, .slick-next {
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  background: #FF6200;
+  border-radius: 50%;
+}
+
+.slick-prev:hover, .slick-next:hover {
+  background: #FFAB40;
+}
+
+/* Nuqtalar (dots) dizayni */
+.slick-dots li button:before {
+  color: #FF6200;
+}
+
+.slick-dots li.slick-active button:before {
+  color: #FFAB40;
+}
+
+/* Ikki qator orasidagi bo'shliq */
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.5rem;
 }
