@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Fastfood as FastfoodIcon, Close as CloseIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -13,11 +13,12 @@ const ProductsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const modalRef = useRef(null); // Modal uchun ref
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
   const token = localStorage.getItem('authToken');
 
-  // Fetch products
+  // Mahsulotlarni olish
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -26,13 +27,16 @@ const ProductsList = () => {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
       let productsData = Array.isArray(response.data) ? response.data : [];
-      productsData = productsData.filter((product) => 
-        product.is_aktiv === true && (!product.kitchen || product.kitchen?.is_aktiv !== false)
+      productsData = productsData.filter(
+        (product) =>
+          product.is_aktiv === true &&
+          (!product.kitchen || product.kitchen?.is_aktiv !== false)
       );
       productsData = shuffleArray(productsData);
 
       const grouped = productsData.reduce((acc, product) => {
-        const category = product.category?.name || product.kitchen?.name || 'Uncategorized';
+        const category =
+          product.category?.name || product.kitchen?.name || 'Uncategorized';
         if (!acc[category]) acc[category] = [];
         acc[category].push(product);
         return acc;
@@ -43,7 +47,8 @@ const ProductsList = () => {
       setCategories(grouped);
     } catch (err) {
       console.error('Fetch error:', err.response?.data || err.message);
-      let errorMessage = err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi";
+      let errorMessage =
+        err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi";
       setError(errorMessage);
       setCategories({});
     } finally {
@@ -53,11 +58,18 @@ const ProductsList = () => {
 
   useEffect(() => {
     fetchProducts();
-    // Enable full-screen mode on mount
+    // To‘liq ekran rejimini yoqish
     if (screenfull.isEnabled) {
       screenfull.request();
     }
   }, [fetchProducts]);
+
+  // Modal ochilganda tepaga skroll qilish
+  useEffect(() => {
+    if (selectedProduct && modalRef.current) {
+      modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedProduct]);
 
   const handleCloseModal = () => setSelectedProduct(null);
 
@@ -66,25 +78,36 @@ const ProductsList = () => {
     const dragVelocity = info.velocity.y;
     const closeThreshold = window.innerHeight * 0.3;
     const velocityThreshold = 500;
-    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) handleCloseModal();
+    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold)
+      handleCloseModal();
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9]">
-      <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
-        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#43A047]"></div>
-        <p className="text-[#388E3C] font-medium text-sm">Mahsulotlar yuklanmoqda...</p>
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9]">
+        <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#43A047]"></div>
+          <p className="text-[#388E3C] font-medium text-sm">
+            Mahsulotlar yuklanmoqda...
+          </p>
+        </div>
       </div>
-    </div>
-  );
-  if (error) return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] px-4">
-      <div className="bg-[#ffebee] border-l-4 border-[#43A047] text-[#388E3C] p-3 rounded-lg">
-        <p className="text-sm">{error}</p>
-        <button onClick={fetchProducts} className="mt-2 text-[#388E3C] hover:text-[#81C784] font-medium flex items-center text-sm">Qayta urinish</button>
+    );
+
+  if (error)
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] px-4">
+        <div className="bg-[#ffebee] border-l-4 border-[#43A047] text-[#388E3C] p-3 rounded-lg">
+          <p className="text-sm">{error}</p>
+          <button
+            onClick={fetchProducts}
+            className="mt-2 text-[#388E3C] hover:text-[#81C784] font-medium flex items-center text-sm"
+          >
+            Qayta urinish
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const sliderSettings = {
     dots: true,
@@ -106,16 +129,33 @@ const ProductsList = () => {
       <div className="max-w-6xl mx-auto px-2 sm:px-6">
         <div className="mb-8 flex items-center gap-3">
           <FastfoodIcon className="w-8 h-8 text-[#43A047] drop-shadow-md" />
-          <h1 className="text-3xl font-extrabold text-[#388E3C] tracking-tight">Mahsulotlar</h1>
-          <span className="ml-2 px-3 py-1 rounded-full bg-[#C8E6C9] text-[#388E3C] text-xs font-semibold shadow">({Object.values(categories).flat().length})</span>
+          <h1 className="text-3xl font-extrabold text-[#388E3C] tracking-tight">
+            Mahsulotlar
+          </h1>
+          <span className="ml-2 px-3 py-1 rounded-full bg-[#C8E6C9] text-[#388E3C] text-xs font-semibold shadow">
+            ({Object.values(categories).flat().length})
+          </span>
         </div>
         <ul className="flex space-x-2 mb-8 overflow-x-auto scrollbar-hide pb-2">
-          {['Barchasi', 'Taomlar', 'Fast Food', 'Shirinliklar', 'Ichimliklar', 'Shashliklar', 'Salatlar'].map((category) => (
+          {[
+            'Barchasi',
+            'Taomlar',
+            'Fast Food',
+            'Shirinliklar',
+            'Ichimliklar',
+            'Shashliklar',
+            'Salatlar',
+          ].map((category) => (
             <li key={category}>
               <button
-                onClick={() => setSelectedCategory(category.toLowerCase() === 'barchasi' ? 'all' : category)}
+                onClick={() =>
+                  setSelectedCategory(
+                    category.toLowerCase() === 'barchasi' ? 'all' : category
+                  )
+                }
                 className={`px-5 py-2 text-sm rounded-full shadow transition-all duration-200 whitespace-nowrap font-semibold ${
-                  selectedCategory === (category.toLowerCase() === 'barchasi' ? 'all' : category.toLowerCase())
+                  selectedCategory ===
+                  (category.toLowerCase() === 'barchasi' ? 'all' : category.toLowerCase())
                     ? 'bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white scale-105 shadow-lg'
                     : 'bg-white text-[#388E3C] border border-[#A5D6A7] hover:bg-[#E8F5E9]'
                 }`}
@@ -133,10 +173,15 @@ const ProductsList = () => {
           </div>
         ) : (
           <div className="space-y-10">
-            {(selectedCategory === 'all' ? Object.entries(categories) : [[selectedCategory, categories[selectedCategory]]]).map(([category, products]) =>
+            {(selectedCategory === 'all'
+              ? Object.entries(categories)
+              : [[selectedCategory, categories[selectedCategory]]]
+            ).map(([category, products]) =>
               products && (
                 <div key={category} className="mb-8">
-                  <h2 className="text-2xl font-bold text-[#388E3C] mb-5 pl-2 border-l-4 border-[#A5D6A7]">{category}</h2>
+                  <h2 className="text-2xl font-bold text-[#388E3C] mb-5 pl-2 border-l-4 border-[#A5D6A7]">
+                    {category}
+                  </h2>
                   <div className="hidden md:block">
                     <Slider {...sliderSettings}>
                       {products.map((product) => (
@@ -151,13 +196,20 @@ const ProductsList = () => {
                                 src={`https://hosilbek.pythonanywhere.com${product.photo}`}
                                 alt={product.title || 'Mahsulot rasmi'}
                                 className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
-                                onError={(e) => { e.target.src = '/default-image.jpg'; }}
+                                onError={(e) => {
+                                  e.target.src = '/default-image.jpg';
+                                }}
                               />
                             </div>
                             <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
-                              <p className="text-lg font-semibold truncate">{product.title}</p>
+                              <p className="text-lg font-semibold truncate">
+                                {product.title}
+                              </p>
                               <p className="text-2xl font-bold">
-                                {(product.discounted_price || product.price).toLocaleString('uz-UZ')} <span className="text-base font-normal">so‘m</span>
+                                {(product.discounted_price || product.price).toLocaleString(
+                                  'uz-UZ'
+                                )}{' '}
+                                <span className="text-base font-normal">so‘m</span>
                               </p>
                             </div>
                           </div>
@@ -177,13 +229,18 @@ const ProductsList = () => {
                             src={`https://hosilbek.pythonanywhere.com${product.photo}`}
                             alt={product.title || 'Mahsulot rasmi'}
                             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
-                            onError={(e) => { e.target.src = '/default-image.jpg'; }}
+                            onError={(e) => {
+                              e.target.src = '/default-image.jpg';
+                            }}
                           />
                         </div>
                         <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
                           <p className="text-lg font-semibold truncate">{product.title}</p>
                           <p className="text-2xl font-bold">
-                            {(product.discounted_price || product.price).toLocaleString('uz-UZ')} <span className="text-base font-normal">so‘m</span>
+                            {(product.discounted_price || product.price).toLocaleString(
+                              'uz-UZ'
+                            )}{' '}
+                            <span className="text-base font-normal">so‘m</span>
                           </p>
                         </div>
                       </div>
@@ -205,7 +262,8 @@ const ProductsList = () => {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="bg-white w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl p-6 h-[90%] sm:h-auto overflow-y-auto shadow-2xl relative"
+              ref={modalRef} // Modalga ref qo‘shildi
+              className="bg-white w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto scroll-smooth shadow-2xl relative"
               onClick={(e) => e.stopPropagation()}
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
@@ -231,10 +289,15 @@ const ProductsList = () => {
                 alt={selectedProduct.title || 'Mahsulot rasmi'}
                 className="w-full h-60 object-cover rounded-xl mb-5 shadow"
               />
-              <h2 className="text-2xl font-bold text-[#388E3C] mb-2">{selectedProduct.title}</h2>
+              <h2 className="text-2xl font-bold text-[#388E3C] mb-2">
+                {selectedProduct.title}
+              </h2>
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl font-bold text-[#43A047]">
-                  {(selectedProduct.discounted_price || selectedProduct.price).toLocaleString('uz-UZ')} so‘m
+                  {(selectedProduct.discounted_price || selectedProduct.price).toLocaleString(
+                    'uz-UZ'
+                  )}{' '}
+                  so‘m
                 </span>
                 {selectedProduct.discounted_price && (
                   <span className="text-base line-through text-[#FF7043] opacity-70">
@@ -242,7 +305,9 @@ const ProductsList = () => {
                   </span>
                 )}
               </div>
-              <p className="text-base text-[#666] mb-2">{selectedProduct.description || 'Tavsif mavjud emas'}</p>
+              <p className="text-base text-[#666] mb-2">
+                {selectedProduct.description || 'Tavsif mavjud emas'}
+              </p>
             </motion.div>
           </motion.div>
         )}
