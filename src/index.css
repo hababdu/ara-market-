@@ -1,14 +1,2 @@
 @import "tailwindcss";
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-.slick-slide {
-  padding: 0 10px;
-}
-.slick-dots {
-  bottom: -30px;
-}
+

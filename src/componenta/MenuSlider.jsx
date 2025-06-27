@@ -4,8 +4,8 @@ import { Fastfood as FastfoodIcon, Close as CloseIcon } from '@mui/icons-materia
 import { motion } from 'framer-motion';
 import screenfull from 'screenfull';
 import Slider from 'react-slick';
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 
 const ProductsList = () => {
   const [categories, setCategories] = useState({});
@@ -67,7 +67,10 @@ const ProductsList = () => {
   // Modal ochilganda tepaga skroll qilish
   useEffect(() => {
     if (selectedProduct && modalRef.current) {
-      modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      // Animatsiya tugashini kutish uchun kechiktirish
+      setTimeout(() => {
+        modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 300); // 300ms kechiktirish (framer-motion animatsiyasi tugashi uchun)
     }
   }, [selectedProduct]);
 
@@ -234,7 +237,7 @@ const ProductsList = () => {
                             }}
                           />
                         </div>
-                        <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
+                        <div className="p-2 text-center hittps://hosilbek.pythonanywhere.combg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
                           <p className="text-lg font-semibold truncate">{product.title}</p>
                           <p className="text-2xl font-bold">
                             {(product.discounted_price || product.price).toLocaleString(
@@ -262,8 +265,8 @@ const ProductsList = () => {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              ref={modalRef} // Modalga ref qo‘shildi
-              className="bg-white w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto scroll-smooth shadow-2xl relative"
+              ref={modalRef}
+              className="bg-white w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl p-6 h-[90vh] overflow-y-auto scroll-smooth shadow-2xl relative"
               onClick={(e) => e.stopPropagation()}
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
