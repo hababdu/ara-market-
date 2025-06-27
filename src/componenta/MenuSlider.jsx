@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
 import { Fastfood as FastfoodIcon, Close as CloseIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import screenfull from 'screenfull';
+import Slider from 'react-slick';
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const ProductsList = () => {
-  const navigate = useNavigate();
   const [categories, setCategories] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -15,6 +17,7 @@ const ProductsList = () => {
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
   const token = localStorage.getItem('authToken');
 
+  // Fetch products
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -41,20 +44,19 @@ const ProductsList = () => {
     } catch (err) {
       console.error('Fetch error:', err.response?.data || err.message);
       let errorMessage = err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi";
-      if (err.response?.status === 401) {
-        errorMessage = "Autentifikatsiya xatosi: Iltimos, tizimga kiring.";
-        localStorage.removeItem('authToken');
-        navigate('/profile');
-      }
       setError(errorMessage);
       setCategories({});
     } finally {
       setLoading(false);
     }
-  }, [token, navigate]);
+  }, [token]);
 
   useEffect(() => {
     fetchProducts();
+    // Enable full-screen mode on mount
+    if (screenfull.isEnabled) {
+      screenfull.request();
+    }
   }, [fetchProducts]);
 
   const handleCloseModal = () => setSelectedProduct(null);
@@ -67,11 +69,40 @@ const ProductsList = () => {
     if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) handleCloseModal();
   };
 
-  if (loading) return <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0]"><div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#4CAF50]"></div><p className="text-[#4CAF50] font-medium text-sm">Mahsulotlar yuklanmoqda...</p></div></div>;
-  if (error) return <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-4"><div className="bg-[#ffebee] border-l-4 border-[#4CAF50] text-[#4CAF50] p-3 rounded-lg"><p className="text-sm">{error}</p><button onClick={fetchProducts} className="mt-2 text-[#4CAF50] hover:text-[#81C784] font-medium flex items-center text-sm">Qayta urinish</button></div></div>;
+  if (loading) return (
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9]">
+      <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
+        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#43A047]"></div>
+        <p className="text-[#388E3C] font-medium text-sm">Mahsulotlar yuklanmoqda...</p>
+      </div>
+    </div>
+  );
+  if (error) return (
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] px-4">
+      <div className="bg-[#ffebee] border-l-4 border-[#43A047] text-[#388E3C] p-3 rounded-lg">
+        <p className="text-sm">{error}</p>
+        <button onClick={fetchProducts} className="mt-2 text-[#388E3C] hover:text-[#81C784] font-medium flex items-center text-sm">Qayta urinish</button>
+      </div>
+    </div>
+  );
+
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 3,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    arrows: true,
+    responsive: [
+      { breakpoint: 1024, settings: { slidesToShow: 2, slidesToScroll: 1 } },
+      { breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1 } },
+    ],
+  };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br  p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] p-4">
       <div className="max-w-6xl mx-auto px-2 sm:px-6">
         <div className="mb-8 flex items-center gap-3">
           <FastfoodIcon className="w-8 h-8 text-[#43A047] drop-shadow-md" />
@@ -106,7 +137,35 @@ const ProductsList = () => {
               products && (
                 <div key={category} className="mb-8">
                   <h2 className="text-2xl font-bold text-[#388E3C] mb-5 pl-2 border-l-4 border-[#A5D6A7]">{category}</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-7">
+                  <div className="hidden md:block">
+                    <Slider {...sliderSettings}>
+                      {products.map((product) => (
+                        <div
+                          key={product.id}
+                          className="px-2"
+                          onClick={() => setSelectedProduct(product)}
+                        >
+                          <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer group">
+                            <div className="relative">
+                              <img
+                                src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+                                alt={product.title || 'Mahsulot rasmi'}
+                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                                onError={(e) => { e.target.src = '/default-image.jpg'; }}
+                              />
+                            </div>
+                            <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
+                              <p className="text-lg font-semibold truncate">{product.title}</p>
+                              <p className="text-2xl font-bold">
+                                {(product.discounted_price || product.price).toLocaleString('uz-UZ')} <span className="text-base font-normal">so‘m</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </Slider>
+                  </div>
+                  <div className="md:hidden grid grid-cols-2 sm:grid-cols-2 gap-7">
                     {products.map((product) => (
                       <div
                         key={product.id}
@@ -120,14 +179,12 @@ const ProductsList = () => {
                             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
                             onError={(e) => { e.target.src = '/default-image.jpg'; }}
                           />
-                         
                         </div>
-                        <div className="p-4 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
+                        <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
                           <p className="text-lg font-semibold truncate">{product.title}</p>
-                          <p className="text-2xl font-bold mt-1">
+                          <p className="text-2xl font-bold">
                             {(product.discounted_price || product.price).toLocaleString('uz-UZ')} <span className="text-base font-normal">so‘m</span>
                           </p>
-                          
                         </div>
                       </div>
                     ))}

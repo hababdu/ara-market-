@@ -1,39 +1,14 @@
 @import "tailwindcss";
-
-/* Slayder konteyneri */
-.slick-slider {
-  margin: 0 -10px;
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
-
-/* Har bir slayd */
 .slick-slide {
   padding: 0 10px;
-  box-sizing: border-box;
 }
-
-/* O'qchalar dizayni */
-.slick-prev, .slick-next {
-  z-index: 10;
-  width: 40px;
-  height: 40px;
-  background: #FF6200;
-  border-radius: 50%;
-}
-
-.slick-prev:hover, .slick-next:hover {
-  background: #94ff4d;
-}
-
-/* Nuqtalar (dots) dizayni */
-.slick-dots li button:before {
-  color: #FF6200;
-}
-
-.slick-dots li.slick-active button:before {
-  color: #FFAB40;
-}
-
-/* Ikki qator orasidagi bo'shliq */
-.space-y-6 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1.5rem;
+.slick-dots {
+  bottom: -30px;
 }
