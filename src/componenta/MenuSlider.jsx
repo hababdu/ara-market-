@@ -3,9 +3,6 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { Fastfood as FastfoodIcon, Close as CloseIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import Slider from 'react-slick';
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 
 const ProductsList = () => {
   const navigate = useNavigate();
@@ -23,17 +20,12 @@ const ProductsList = () => {
       setLoading(true);
       setError(null);
       const response = await axios.get(API_URL, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
       let productsData = Array.isArray(response.data) ? response.data : [];
-
       productsData = productsData.filter((product) => 
-        product.is_aktiv === true && 
-        (!product.kitchen || product.kitchen?.is_aktiv !== false)
+        product.is_aktiv === true && (!product.kitchen || product.kitchen?.is_aktiv !== false)
       );
-
       productsData = shuffleArray(productsData);
 
       const grouped = productsData.reduce((acc, product) => {
@@ -42,13 +34,9 @@ const ProductsList = () => {
         acc[category].push(product);
         return acc;
       }, {});
-
       Object.keys(grouped).forEach((category) => {
-        if (grouped[category].length === 0) {
-          delete grouped[category];
-        }
+        if (grouped[category].length === 0) delete grouped[category];
       });
-
       setCategories(grouped);
     } catch (err) {
       console.error('Fetch error:', err.response?.data || err.message);
@@ -69,241 +57,80 @@ const ProductsList = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleCloseModal = () => {
-    setSelectedProduct(null);
-  };
+  const handleCloseModal = () => setSelectedProduct(null);
 
   const handleModalDragEnd = (event, info) => {
     const dragDistance = info.offset.y;
     const dragVelocity = info.velocity.y;
     const closeThreshold = window.innerHeight * 0.3;
     const velocityThreshold = 500;
-
-    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
-      handleCloseModal();
-    }
+    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) handleCloseModal();
   };
 
-  // Birinchi qator uchun slayder sozlamalari
-  const sliderSettingsRow1 = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 3, // Bir vaqtda 3 ta mahsulot ko'rinadi
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3000, // 3 sekundda aylanish
-    arrows: true,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-      {
-        breakpoint: 600,
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-        },
-      },
-    ],
-  };
-
-  // Ikkinchi qator uchun slayder sozlamalari
-  const sliderSettingsRow2 = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 3, // Bir vaqtda 3 ta mahsulot ko'rinadi
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 4000, // 4 sekundda aylanish (birinchi qatordan farqli)
-    arrows: true,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-      {
-        breakpoint: 600,
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-        },
-      },
-    ],
-  };
-
-  // Mahsulotlarni ikki qatorga bo'lish funksiyasi
-  const splitIntoRows = (products) => {
-    const half = Math.ceil(products.length / 2);
-    return {
-      row1: products.slice(0, half),
-      row2: products.slice(half),
-    };
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0]">
-        <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#FF6200]"></div>
-          <p className="text-[#FF6200] font-medium text-sm">Mahsulotlar yuklanmoqda...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-4">
-        <div className="bg-[#ffebee] border-l-4 border-[#FF6200] text-[#FF6200] p-3 rounded-lg">
-          <p className="text-sm">{error}</p>
-          <button
-            onClick={fetchProducts}
-            className="mt-2 text-[#FF6200] hover:text-[#FFAB40] font-medium flex items-center text-sm"
-          >
-            Qayta urinish
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0]"><div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#4CAF50]"></div><p className="text-[#4CAF50] font-medium text-sm">Mahsulotlar yuklanmoqda...</p></div></div>;
+  if (error) return <div className="flex justify-center items-center min-h-[calc(100vh-64px)] bg-[#FFF3E0] px-4"><div className="bg-[#ffebee] border-l-4 border-[#4CAF50] text-[#4CAF50] p-3 rounded-lg"><p className="text-sm">{error}</p><button onClick={fetchProducts} className="mt-2 text-[#4CAF50] hover:text-[#81C784] font-medium flex items-center text-sm">Qayta urinish</button></div></div>;
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-[#FFF3E0] p-4 relative">
-      <div className="max-w-8xl mx-auto px-10">
-       <div className=" flex  items-center mb-8 flex-col md:flex-row w-full justify-around">
-         <div className="mb-6">
-          <h1 className=" text-2xl font-bold text-[#FF6200] flex items-center">
-            <FastfoodIcon className="w-6 h-6 mr-2" />
-            ARA Cafe Menu
-          </h1>
+    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br  p-4">
+      <div className="max-w-6xl mx-auto px-2 sm:px-6">
+        <div className="mb-8 flex items-center gap-3">
+          <FastfoodIcon className="w-8 h-8 text-[#43A047] drop-shadow-md" />
+          <h1 className="text-3xl font-extrabold text-[#388E3C] tracking-tight">Mahsulotlar</h1>
+          <span className="ml-2 px-3 py-1 rounded-full bg-[#C8E6C9] text-[#388E3C] text-xs font-semibold shadow">({Object.values(categories).flat().length})</span>
         </div>
-
-        <div className="mb-6 w-full">
-          <ul className="flex space-x-4 overflow-x-auto scrollbar-hide ">
-            <li>
+        <ul className="flex space-x-2 mb-8 overflow-x-auto scrollbar-hide pb-2">
+          {['Barchasi', 'Taomlar', 'Fast Food', 'Shirinliklar', 'Ichimliklar', 'Shashliklar', 'Salatlar'].map((category) => (
+            <li key={category}>
               <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-6 py-3 text-sm rounded-full whitespace-nowrap ${
-                  selectedCategory === 'all'
-                    ? 'bg-[#FF6200] text-white'
-                    : 'bg-white text-[#FF6200] border border-[#FF6200] hover:bg-[#FFF3E0]'
-                } transition-colors`}
+                onClick={() => setSelectedCategory(category.toLowerCase() === 'barchasi' ? 'all' : category)}
+                className={`px-5 py-2 text-sm rounded-full shadow transition-all duration-200 whitespace-nowrap font-semibold ${
+                  selectedCategory === (category.toLowerCase() === 'barchasi' ? 'all' : category.toLowerCase())
+                    ? 'bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white scale-105 shadow-lg'
+                    : 'bg-white text-[#388E3C] border border-[#A5D6A7] hover:bg-[#E8F5E9]'
+                }`}
               >
-                Barchasi
+                {category}
               </button>
             </li>
-            {Object.keys(categories).map((category) => (
-              <li key={category}>
-                <button
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-6 py-3 text-sm rounded-full whitespace-nowrap ${
-                    selectedCategory === category
-                      ? 'bg-[#FF6200] text-white'
-                      : 'bg-white text-[#FF6200] border border-[#FF6200] hover:bg-[#FFF3E0]'
-                  } transition-colors`}
-                >
-                  {category}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-       </div>
+          ))}
+        </ul>
 
         {Object.keys(categories).length === 0 ? (
-          <div className="text-center py-12 text-[#666] bg-white rounded-lg shadow-sm">
-            <FastfoodIcon className="w-12 h-12 mx-auto mb-2 text-[#FFAB40]" />
-            <p className="text-base">Mahsulotlar topilmadi</p>
+          <div className="text-center py-16 text-[#666] bg-white rounded-2xl shadow-lg">
+            <FastfoodIcon className="w-16 h-16 mx-auto mb-4 text-[#A5D6A7]" />
+            <p className="text-lg font-medium">Mahsulotlar topilmadi</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {(selectedCategory === 'all'
-              ? Object.entries(categories)
-              : [[selectedCategory, categories[selectedCategory]]]
-            ).map(([category, products]) =>
+          <div className="space-y-10">
+            {(selectedCategory === 'all' ? Object.entries(categories) : [[selectedCategory, categories[selectedCategory]]]).map(([category, products]) =>
               products && (
-                <div key={category} className="mb-6">
-                  <div className="mb-4">
-                    <h2 className="text-xl font-bold text-[#FF6200]">{category}</h2>
-                  </div>
-                  <div className="space-y-6">
-                    {/* Birinchi qator slayderi */}
-                    {splitIntoRows(products).row1.length > 0 && (
-                      <Slider {...sliderSettingsRow1}>
-                        {splitIntoRows(products).row1.map((product) => (
-                          <div
-                            key={product.id}
-                            className="px-2"
-                            onClick={() => setSelectedProduct(product)}
-                            aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
-                          >
-                            <div className="relative">
-                              <div className="w-full h-80 bg-white rounded-lg overflow-hidden">
-                                {product.photo ? (
-                                  <img
-                                    src={`https://hosilbek.pythonanywhere.com${product.photo}`}
-                                    alt={product.title || 'Mahsulot rasmi'}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { e.target.src = '/default-image.jpg'; }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-[#FFF3E0] flex items-center justify-center">
-                                    <FastfoodIcon className="w-16 h-16 text-[#FFAB40]" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="absolute top-0 left-0 bg-[#FF6200] text-white rounded-lg p-2 text-2xl font-bold">
-                                Narx: {(product.discounted_price || product.price).toLocaleString('uz-UZ')} so‘m
-                              </div>
-                            </div>
-                            <p className="mt-4 text-2xl text-[#333] font-extrabold text-center">{product.title}</p>
-                          </div>
-                        ))}
-                      </Slider>
-                    )}
-                    {/* Ikkinchi qator slayderi */}
-                    {splitIntoRows(products).row2.length > 0 && (
-                      <Slider {...sliderSettingsRow2}>
-                        {splitIntoRows(products).row2.map((product) => (
-                          <div
-                            key={product.id}
-                            className="px-2"
-                            onClick={() => setSelectedProduct(product)}
-                            aria-label={`Mahsulot: ${product.title || 'Yangi mahsulot'}`}
-                          >
-                            <div className="relative">
-                              <div className="w-full h-80 bg-white rounded-lg overflow-hidden">
-                                {product.photo ? (
-                                  <img
-                                    src={`https://hosilbek.pythonanywhere.com${product.photo}`}
-                                    alt={product.title || 'Mahsulot rasmi'}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { e.target.src = '/default-image.jpg'; }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-[#FFF3E0] flex items-center justify-center">
-                                    <FastfoodIcon className="w-16 h-16 text-[#FFAB40]" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="absolute top-0 left-0 bg-[#FF6200] text-white rounded-lg p-2 text-2xl font-bold">
-                                Narx: {(product.discounted_price || product.price).toLocaleString('uz-UZ')} so‘m
-                              </div>
-                            </div>
-                            <p className="mt-4 text-2xl text-[#333] font-extrabold text-center">{product.title}</p>
-                          </div>
-                        ))}
-                      </Slider>
-                    )}
+                <div key={category} className="mb-8">
+                  <h2 className="text-2xl font-bold text-[#388E3C] mb-5 pl-2 border-l-4 border-[#A5D6A7]">{category}</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-7">
+                    {products.map((product) => (
+                      <div
+                        key={product.id}
+                        className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer group"
+                        onClick={() => setSelectedProduct(product)}
+                      >
+                        <div className="relative">
+                          <img
+                            src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+                            alt={product.title || 'Mahsulot rasmi'}
+                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                            onError={(e) => { e.target.src = '/default-image.jpg'; }}
+                          />
+                         
+                        </div>
+                        <div className="p-4 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
+                          <p className="text-lg font-semibold truncate">{product.title}</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {(product.discounted_price || product.price).toLocaleString('uz-UZ')} <span className="text-base font-normal">so‘m</span>
+                          </p>
+                          
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )
@@ -313,7 +140,7 @@ const ProductsList = () => {
 
         {selectedProduct && (
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end"
+            className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-end sm:items-center sm:justify-center"
             onClick={handleCloseModal}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -321,7 +148,7 @@ const ProductsList = () => {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="bg-[#FFF3E0] w-full rounded-t-2xl p-4 h-[90%] overflow-y-auto"
+              className="bg-white w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl p-6 h-[90%] sm:h-auto overflow-y-auto shadow-2xl relative"
               onClick={(e) => e.stopPropagation()}
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
@@ -333,43 +160,32 @@ const ProductsList = () => {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <div className="flex justify-center mb-2">
-                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <div className="flex justify-center mb-3">
+                <div className="w-12 h-1 bg-gray-300 rounded-full" />
               </div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#FF6200]">{selectedProduct.title}</h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-[#FF6200] hover:text-[#FFAB40]"
-                  aria-label="Modalni yopish"
-                >
-                  <CloseIcon className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="relative mb-4">
-                {selectedProduct.photo ? (
-                  <img
-                    src={`https://hosilbek.pythonanywhere.com${selectedProduct.photo}`}
-                    alt={selectedProduct.title || 'Mahsulot rasmi'}
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
-                ) : (
-                  <div className="w-full h-64 bg-[#FFF3E0] flex items-center justify-center rounded-lg">
-                    <FastfoodIcon className="w-16 h-16 text-[#FFAB40]" />
-                  </div>
+              <button
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 text-[#43A047] hover:text-[#FF7043] bg-[#E8F5E9] rounded-full p-1 shadow"
+              >
+                <CloseIcon className="w-6 h-6" />
+              </button>
+              <img
+                src={`https://hosilbek.pythonanywhere.com${selectedProduct.photo}`}
+                alt={selectedProduct.title || 'Mahsulot rasmi'}
+                className="w-full h-60 object-cover rounded-xl mb-5 shadow"
+              />
+              <h2 className="text-2xl font-bold text-[#388E3C] mb-2">{selectedProduct.title}</h2>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl font-bold text-[#43A047]">
+                  {(selectedProduct.discounted_price || selectedProduct.price).toLocaleString('uz-UZ')} so‘m
+                </span>
+                {selectedProduct.discounted_price && (
+                  <span className="text-base line-through text-[#FF7043] opacity-70">
+                    {selectedProduct.price.toLocaleString('uz-UZ')} so‘m
+                  </span>
                 )}
               </div>
-              <div className="mb-4">
-                <span className="text-2xl font-bold text-[#FF6200]">
-                  Narx: {(selectedProduct.discounted_price || product.price).toLocaleString('uz-UZ')} so‘m
-                </span>
-              </div>
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-[#333] mb-2">Tavsif</h3>
-                <p className="text-sm text-[#666] whitespace-pre-line">
-                  {selectedProduct.description || 'Tavsif mavjud emas'}
-                </p>
-              </div>
+              <p className="text-base text-[#666] mb-2">{selectedProduct.description || 'Tavsif mavjud emas'}</p>
             </motion.div>
           </motion.div>
         )}
@@ -378,7 +194,6 @@ const ProductsList = () => {
   );
 };
 
-// Helper function to shuffle array
 const shuffleArray = (array) => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
