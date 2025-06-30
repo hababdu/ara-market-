@@ -122,7 +122,7 @@ const ProductsList = () => {
   }
 
   const sliderSettings = {
-    dots: false, // Nuqtalarni olib tashlash
+    dots: false,
     infinite: true,
     speed: 500,
     slidesToShow: 3,
@@ -202,27 +202,26 @@ const ProductsList = () => {
                           className="px-2"
                           onClick={() => setSelectedProduct(product)}
                         >
-                          <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer group">
-                            <div className="relative">
+                          <div className="border-4 border-white rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer">
+                            <div className="bg-yellow-300 p-2 text-center">
+                              <h3 className="text-lg font-bold text-black truncate">
+                                {product.title}
+                              </h3>
+                            </div>
+                            <div className=" flex flex-col items-center">
                               <img
                                 src={`https://hosilbek.pythonanywhere.com${product.photo}`}
                                 alt={product.title || 'Mahsulot rasmi'}
-                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                                className="w-40 h-40 object-cover"
                                 onError={(e) => {
                                   e.target.src = '/default-image.jpg';
                                 }}
                               />
-                            </div>
-                            <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
-                              <p className="text-lg font-semibold truncate">
-                                {product.title}
-                              </p>
-                              <p className="text-2xl font-bold">
+                              <div className="bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white rounded-full w-24 h-12 flex items-center justify-center text-lg font-bold mt-2">
                                 {(product.discounted_price || product.price).toLocaleString(
                                   'uz-UZ'
-                                )}{' '}
-                                <span className="text-base font-normal">so‘m</span>
-                              </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -233,27 +232,28 @@ const ProductsList = () => {
                     {products.map((product) => (
                       <div
                         key={product.id}
-                        className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer group"
+                        className="border-4 border-white rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer"
                         onClick={() => setSelectedProduct(product)}
                       >
-                        <div className="relative">
+                        <div className="bg-yellow-300 p-2 text-center">
+                          <h3 className="text-lg font-bold text-black truncate">
+                            {product.title}
+                          </h3>
+                        </div>
+                        <div className="p-4 flex flex-col items-center">
                           <img
                             src={`https://hosilbek.pythonanywhere.com${product.photo}`}
                             alt={product.title || 'Mahsulot rasmi'}
-                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                            className="w-40 h-40 object-cover"
                             onError={(e) => {
                               e.target.src = '/default-image.jpg';
                             }}
                           />
-                        </div>
-                        <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
-                          <p className="text-lg font-semibold truncate">{product.title}</p>
-                          <p className="text-2xl font-bold">
+                          <div className="bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white rounded-full w-12 h-12 flex items-center justify-center text-lg font-bold mt-2">
                             {(product.discounted_price || product.price).toLocaleString(
                               'uz-UZ'
-                            )}{' '}
-                            <span className="text-base font-normal">so‘m</span>
-                          </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
