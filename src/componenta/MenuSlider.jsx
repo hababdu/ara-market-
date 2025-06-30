@@ -13,10 +13,9 @@ const ProductsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const modalRef = useRef(null); // Modal uchun ref
+  const modalRef = useRef(null);
 
   const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
-  const token = localStorage.getItem('authToken');
 
   // Mahsulotlarni olish
   const fetchProducts = useCallback(async () => {
@@ -24,8 +23,11 @@ const ProductsList = () => {
       setLoading(true);
       setError(null);
       const response = await axios.get(API_URL, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
       let productsData = Array.isArray(response.data) ? response.data : [];
       productsData = productsData.filter(
         (product) =>
@@ -46,19 +48,24 @@ const ProductsList = () => {
       });
       setCategories(grouped);
     } catch (err) {
-      console.error('Fetch error:', err.response?.data || err.message);
-      let errorMessage =
-        err.response?.data?.message || "Mahsulotlarni yuklab bo‘lmadi";
+      const errorMessage =
+        err.response?.status === 401
+          ? 'Serverga kirish uchun ruxsat yo‘q. API autentifikatsiya talab qilishi mumkin.'
+          : err.response?.data?.message || 'Mahsulotlarni yuklab bo‘lmadi';
+      console.error('Fetch error:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
       setError(errorMessage);
       setCategories({});
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-    // To‘liq ekran rejimini yoqish
     if (screenfull.isEnabled) {
       screenfull.request();
     }
@@ -67,10 +74,9 @@ const ProductsList = () => {
   // Modal ochilganda tepaga skroll qilish
   useEffect(() => {
     if (selectedProduct && modalRef.current) {
-      // Animatsiya tugashini kutish uchun kechiktirish
       setTimeout(() => {
         modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 300); // 300ms kechiktirish (framer-motion animatsiyasi tugashi uchun)
+      }, 300);
     }
   }, [selectedProduct]);
 
@@ -81,11 +87,12 @@ const ProductsList = () => {
     const dragVelocity = info.velocity.y;
     const closeThreshold = window.innerHeight * 0.3;
     const velocityThreshold = 500;
-    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold)
+    if (dragDistance > closeThreshold || dragVelocity > velocityThreshold) {
       handleCloseModal();
+    }
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9]">
         <div className="bg-white shadow-md rounded-lg px-4 py-3 flex items-center gap-2">
@@ -96,8 +103,9 @@ const ProductsList = () => {
         </div>
       </div>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] px-4">
         <div className="bg-[#ffebee] border-l-4 border-[#43A047] text-[#388E3C] p-3 rounded-lg">
@@ -111,9 +119,10 @@ const ProductsList = () => {
         </div>
       </div>
     );
+  }
 
   const sliderSettings = {
-    dots: true,
+    dots: false, // Nuqtalarni olib tashlash
     infinite: true,
     speed: 500,
     slidesToShow: 3,
@@ -237,7 +246,7 @@ const ProductsList = () => {
                             }}
                           />
                         </div>
-                        <div className="p-2 text-center hittps://hosilbek.pythonanywhere.combg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
+                        <div className="p-2 text-center bg-gradient-to-r from-[#43A047] to-[#66BB6A] text-white">
                           <p className="text-lg font-semibold truncate">{product.title}</p>
                           <p className="text-2xl font-bold">
                             {(product.discounted_price || product.price).toLocaleString(
