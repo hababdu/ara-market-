@@ -32,7 +32,7 @@ const defaultCenter = {
   lng: 71.850070,
 };
 const api = axios.create({
-  baseURL: 'https://hosilbek.pythonanywhere.com/api/',
+  baseURL: 'https://hosilbek02.pythonanywhere.com/api/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -78,7 +78,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post('https://hosilbek.pythonanywhere.com/api/token/refresh/', {
+        const response = await axios.post('https://hosilbek02.pythonanywhere.com/api/token/refresh/', {
           refresh: refreshToken,
         });
 
@@ -644,7 +644,7 @@ const Checkout = () => {
                 <li key={item.id || index} className="flex items-center border-b border-gray-200 py-2 last:border-b-0">
                   <div className="relative mr-2">
                     <img
-                      src={item.photo ? `https://hosilbek.pythonanywhere.com${item.photo}` : 'https://via.placeholder.com/28x28?text=Image'}
+                      src={item.photo ? `https://hosilbek02.pythonanywhere.com${item.photo}` : 'https://via.placeholder.com/28x28?text=Image'}
                       alt={item.title}
                       className="w-8 h-8 rounded-lg object-cover"
                     />

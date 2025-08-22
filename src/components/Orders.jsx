@@ -22,7 +22,7 @@ const OrderPage = memo(() => {
         throw new Error('Token topilmadi. Iltimos, tizimga kiring.');
       }
 
-      const response = await fetch('https://hosilbek.pythonanywhere.com/api/user/order-history/', {
+      const response = await fetch('https://hosilbek02.pythonanywhere.com/api/user/order-history/', {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',

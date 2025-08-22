@@ -58,7 +58,7 @@
        if (!refreshToken) return false;
        try {
          const response = await axios.post(
-           'https://hosilbek.pythonanywhere.com/api/token/refresh/',
+           'https://hosilbek02.pythonanywhere.com/api/token/refresh/',
            { refresh: refreshToken },
            { headers: { 'Content-Type': 'application/json' } }
          );
@@ -111,7 +111,7 @@
          try {
            const response = await makeAuthenticatedRequest({
              method: 'get',
-             url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+             url: 'https://hosilbek02.pythonanywhere.com/api/user/user-profiles/',
            });
            profileData = response.data;
          } catch (err) {
@@ -168,7 +168,7 @@
        try {
          const response = await makeAuthenticatedRequest({
            method: 'get',
-           url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+           url: 'https://hosilbek02.pythonanywhere.com/api/user/user-profiles/',
          });
          if (Array.isArray(response.data) && isMounted.current) {
            setAvailableProfiles(response.data);
@@ -256,8 +256,8 @@
          };
 
          try {
-           await axios.post('https://hosilbek.pythonanywhere.com/api/user/user-profiles/', payload);
-           const loginResponse = await axios.post('https://hosilbek.pythonanywhere.com/api/token/', {
+           await axios.post('https://hosilbek02.pythonanywhere.com/api/user/user-profiles/', payload);
+           const loginResponse = await axios.post('https://hosilbek02.pythonanywhere.com/api/token/', {
              username: formData.username.trim(),
              password: formData.password,
            });
@@ -267,7 +267,7 @@
 
            const profileData = (await makeAuthenticatedRequest({
              method: 'get',
-             url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+             url: 'https://hosilbek02.pythonanywhere.com/api/user/user-profiles/',
            })).data[0] || {};
 
            if (!profileData.id) throw new Error('Invalid profile');
@@ -339,7 +339,7 @@
          }
 
          try {
-           const response = await axios.post('https://hosilbek.pythonanywhere.com/api/token/', {
+           const response = await axios.post('https://hosilbek02.pythonanywhere.com/api/token/', {
              username: formData.username.trim(),
              password: formData.password,
            });
@@ -349,7 +349,7 @@
 
            const profileData = (await makeAuthenticatedRequest({
              method: 'get',
-             url: 'https://hosilbek.pythonanywhere.com/api/user/user-profiles/',
+             url: 'https://hosilbek02.pythonanywhere.com/api/user/user-profiles/',
            })).data[0] || {};
 
            if (!profileData.id) throw new Error('No valid profile');

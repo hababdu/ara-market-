@@ -39,7 +39,7 @@ const ProductsList = memo(() => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const addToCartButtonRef = useRef(null);
 
-  const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
+  const API_URL = 'https://hosilbek02.pythonanywhere.com/api/user/products/';
   const token = localStorage.getItem('authToken');
 
   // Mahsulotlarni yuklash

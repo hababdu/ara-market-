@@ -14,7 +14,7 @@ const CartAnimation = memo(({ animation }) => {
     >
       {animation.photo ? (
         <LazyImage
-          src={`https://hosilbek.pythonanywhere.com${animation.photo}`}
+          src={`https://hosilbek02.pythonanywhere.com${animation.photo}`}
           placeholder="/images/placeholder.jpg"
           alt="Product"
           className="w-8 h-8 rounded-full object-cover"

@@ -26,7 +26,7 @@ const ProductCard = memo(({ product, onSelect }) => {
       <div className="relative pt-[75%] overflow-hidden">
         {product.photo ? (
           <LazyImage
-            src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+            src={`https://hosilbek02.pythonanywhere.com${product.photo}`}
             placeholder="/images/placeholder.jpg"
             alt={product.title || 'Mahsulot rasmi'}
             className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-100 loaded"

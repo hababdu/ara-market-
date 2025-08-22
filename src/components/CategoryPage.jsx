@@ -33,7 +33,7 @@ const CategoryPage = memo(() => {
   const [subcategories, setSubcategories] = useState([]);
   const [selectedSubcategory, setSelectedSubcategory] = useState('all');
 
-  const API_URL = 'https://hosilbek.pythonanywhere.com/api/user/products/';
+  const API_URL = 'https://hosilbek02.pythonanywhere.com/api/user/products/';
   const addToCartButtonRef = useRef(null);
 
   // Mahsulotlarni yuklash

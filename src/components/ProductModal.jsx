@@ -53,7 +53,7 @@ const ProductModal = memo(({ product, quantity, setQuantity, onClose, onAddToCar
         <div className="relative mb-4">
           {product.photo ? (
             <LazyImage
-              src={`https://hosilbek.pythonanywhere.com${product.photo}`}
+              src={`https://hosilbek02.pythonanywhere.com${product.photo}`}
               placeholder="/images/placeholder.jpg"
               alt={product.title || 'Mahsulot rasmi'}
               className="w-full h-48 object-cover rounded-lg"

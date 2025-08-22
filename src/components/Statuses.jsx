@@ -18,8 +18,8 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-const ACTIVE_ORDERS_API = 'https://hosilbek.pythonanywhere.com/api/user/active-orders/';
-const BASE_URL = 'https://hosilbek.pythonanywhere.com';
+const ACTIVE_ORDERS_API = 'https://hosilbek02.pythonanywhere.com/api/user/active-orders/';
+const BASE_URL = 'https://hosilbek02.pythonanywhere.com';
 
 // Default avatar for missing product images
 const defaultAvatar = 'https://via.placeholder.com/32x32?text=No+Image';
